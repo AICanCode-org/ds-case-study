@@ -3,6 +3,88 @@
 [![CI](https://github.com/AICanCode-org/ds-case-study/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AICanCode-org/ds-case-study/actions/workflows/ci.yml)
 [![CI (solution)](https://github.com/AICanCode-org/ds-case-study/actions/workflows/ci.yml/badge.svg?branch=solution)](https://github.com/AICanCode-org/ds-case-study/actions/workflows/ci.yml?query=branch%3Asolution)
 
+## Case study (reference solution)
+
+> **The retention team at TiffinBox could call 10 % of customers a month and picked them with five risk flags. A
+> calibrated logistic regression on 15 point-in-time features finds 30 % of next month's churners in that 10 %
+> (the flags find 21 %), worth about ₹1.1 lakh a month under a stated assumption. It is built three times, in
+> Python, SQL and R, against one written spec, and all three produce the same model to 1e-6.**
+
+```console
+$ docker compose --profile train run --rm --no-deps parity-model
+MATCH      /out/python/model.json (python)
+MATCH      /out/sql/model.json (sql)
+MATCH      /out/r/model.json (r)
+$ python3 scripts/eval_gate.py tracks/python/out/metrics.json | tail -3
+  PASS  recall_gap             value 0.1154  threshold 0.1500
+  PASS  leakage_scan           value 0.7033  threshold 0.9000
+gate PASSED
+```
+
+**Problem → answer.** After cleaning a deliberately messy export (12 counted issue types: two date formats,
+duplicated rows, rupee prices as text, negative usage counts, orphans, tickets resolved before they were opened),
+the pipeline builds monthly snapshots in which every feature uses only what was known before the month's cut-off,
+and compares models with 5 folds grouped by customer, then once on two later months:
+
+| Out-of-time test (2026-03, 2026-04) | Prior (B0) | Rule of thumb (B1) | **Champion E2** |
+|---|---|---|---|
+| AUC | 0.500 | 0.651 | **0.743** |
+| Brier | 0.0803 | 0.0780 | **0.0753** |
+| Precision / recall of the 10 % call list | | 18.8 % / 21.4 % | **26.6 % / 30.2 %** (lift 3.0×) |
+| Net value per month (25 % save rate, assumed) | | ₹63,001 | **₹109,786** |
+
+The champion was chosen by a rule written before the test was computed (E2 beats the 5-feature E1 by 0.015 mean
+CV AUC). On the test E1's call list is slightly better; we did not switch, because that would turn the test into a
+second validation set. Calibration error 0.008, recall gap across age bands 0.115 (age is never a feature), no
+feature above 0.70 single-feature AUC (the banned `cancellation_reason` would score 0.88). The six-check release
+gate passes. See the [model card](docs/model-card.md).
+
+**After launch.** The July export stopped the pipeline on a new acquisition channel (`influencer`), and monitoring
+added in v1.1 showed why that mattered: churn had risen to 14-17 % after a price rise, and the deployed model,
+still ranking well (AUC 0.77), under-predicted it (ECE 0.059). A refitted, recalibrated challenger was promoted on a
+holdout month neither model had seen (ECE 0.013, AUC 0.773 vs 0.770). [Post-mortem](docs/postmortem-2026-07.md).
+
+**Decisions I'd defend in an interview** ([modelling plan](spec/modelling-plan.md)):
+[read raw files as text](spec/adr/0001-read-raw-files-as-text.md) ·
+[point-in-time snapshots and a leakage scan](spec/adr/0002-point-in-time-snapshots.md) ·
+[grouped CV and an out-of-time test](spec/adr/0003-grouped-cv-out-of-time-test.md) ·
+[unpenalised logistic regression and a pre-registered champion rule](spec/adr/0004-unpenalised-logistic-regression.md) ·
+[age band: never a feature, always a check](spec/adr/0005-fairness-and-protected-attributes.md) ·
+[versioned contract and monitoring](spec/adr/0006-versioned-contract-and-monitoring.md).
+
+**Evidence**
+
+| | Python (pandas, scikit-learn, Jupyter) | SQL (DuckDB) | R (tidymodels, R Markdown) | API (FastAPI) |
+|---|---|---|---|---|
+| Tests v1.1.0 (unit + data + golden + invariants) | 110 | 108 | 91 `test_that` blocks | 38 |
+| Line coverage (gate 85 %) | 99 % | 97 % | 98 % | 96 % |
+| Parity with the golden files (2026-05, 2026-07, `--backcompat`) | MATCH | MATCH | MATCH | |
+
+Features agree to 1e-9 and metrics and models to 1e-6 (observed differences about 1e-13). The Docker smoke test
+passes against the API of v1.0.0 (8 checks) and v1.1.0 (10 checks), also with the AI provider unreachable (the
+explainer falls back to its template and says so); the v1.0.0 API serves the v1.1 model. All images run as
+non-root with a read-only file system; R is pinned to a dated package snapshot so CI and laptops agree.
+
+- **Data contract:** declarative checks with severities; an `error` stops the run (exit 3) instead of training on
+  changed data. Contract 1.1.0 keeps 1.0.0 in `contract/history/`.
+- **Monitoring:** PSI per feature and score, realised performance per labelled month, alerts, a
+  champion/challenger rule; Prometheus metrics and request ids in the API.
+- **AI explainer:** an optional OpenAI-compatible model explains one score from numbered facts (the top
+  contributions); guardrails reject invented numbers, unknown citations, certainty claims and sensitive
+  attributes, with a deterministic fallback. It never sees a customer id and needs no paid key.
+
+**How I used AI.** Assistants drafted code, tests and docs; every entry is in [`AI_LOG.md`](AI_LOG.md). Rejected: an
+`open_tickets` feature that read the export's final state (leakage), scikit-learn's default L2 penalty (a
+different model), a shuffled K-fold split, installing the latest R packages in CI, and an "unknown channel →
+unknown" fix that would have hidden the influencer launch. Three-track parity caught a real bug that unit tests had
+missed: a matrix product summed in a different order scored two identical rows an ulp apart and changed the tie
+order of the call list.
+
+**Limits and next steps.** The data is synthetic. The value estimate assumes that 25 % of contacted would-be
+churners stay; predicting churn does not show that a call *causes* anyone to stay. Next: a randomised hold-out to
+measure the save rate, uplift modelling (who is persuadable), a gradient-boosted challenger through the same gate,
+and monitoring on a schedule.
+
 ChurnCast is a guided project from **[AiCanCode](https://www.aicancode.org)**, the capstone of the Data Science
 track. Over 9 phases (about 40 hours) you take **one messy subscription dataset the whole way** to a churn model
 that a retention team can use: requirements, a data contract and a modelling plan, a test-first implementation,
