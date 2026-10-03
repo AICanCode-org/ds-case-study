@@ -48,7 +48,30 @@ Who this is for: whoever retrains the model on a new export, runs the API, or an
   `LLM_TIMEOUT_MS` (default 4000) bounds the wait.
 - Never put an API key in the image, the repository or a prompt; use `.env` (git-ignored) or a platform secret.
 
-## 6. Releases
+## 6. Monthly monitoring (contract 1.1)
+1. When a new export arrives, run any track on it: with contract 1.1 the run also writes `monitoring` and
+   `retraining` into `metrics.json` (`feature-spec.md` §9).
+2. Read `monitoring.status`:
+
+| Status | Meaning | What to do |
+|---|---|---|
+| `ok` | no feature drifted, no performance alert | keep the deployed model |
+| `watch` | a feature (or the score) has PSI ≥ 0.25, performance still within the alerts | tell the business what moved; check again next month |
+| `retrain` | a labelled month broke an alert (ECE > 0.03, mean gap > 0.02, AUC < 0.72) | read `retraining`: promote the challenger only if `decision` is `promote` |
+
+3. Promoting: copy `out/model.json` to `models/churncast-<version>.json`, regenerate the model card, run the gate
+   and the smoke test, switch `MODEL_PATH`, and write a CHANGELOG entry. `keep` means the challenger was not
+   better on the holdout: keep the champion and investigate (new features, a new data source).
+4. Drift says *what* moved, not *why*. Ask the business (pricing, marketing, operations) before explaining it.
+
+## 7. Observability (API 1.1)
+- Every response carries `X-Request-ID` (yours if it is a safe token, else a new one); quote it in bug reports.
+- One JSON log line per request (method, route template, status, duration, request id; never a customer id or a raw URL).
+- `GET /metrics` (Prometheus): `churncast_requests_total`, `churncast_request_duration_seconds`,
+  `churncast_predictions_total`, `churncast_explainer_fallbacks_total`, `churncast_model_info`. Alert on a
+  rising fallback rate (the AI provider is failing) and on 5xx responses.
+
+## 8. Releases
 - A release is a tag `vX.Y.Z` on a commit with green CI. `deploy.yml` pushes
   `ghcr.io/<owner>/churncast-{api,python,sql,r}:X.Y.Z`; the optional Render job deploys the API.
 - Roll back: redeploy the previous image tag, or set `MODEL_PATH` to the previous artefact in `models/` (every

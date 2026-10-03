@@ -129,3 +129,27 @@ Ollama model, ...) produced something you kept, changed or rejected.
   unreachable returns the template with `fallback: true`.
 * **Time saved / lost (honest guess):** saved ~1 hour of inventing attacks.
 * **What I learned:** guardrails are tested like any other code: with the cases that should fail.
+
+### 2026-08-04 · Phase 7 · "Just map influencer to unknown"
+* **Tool / model:** Copilot Chat in VS Code
+* **Prompt (summary or paste):**
+  > The July export fails `customers.channel.accepted` (exit 3). How do I fix the pipeline?
+* **What it produced:** a one-line change in the cleaning code mapping unknown channels to `unknown`.
+* **What I kept / changed / rejected, and why:** rejected. It would have hidden the next new value too, and moved
+  the channel slices without a record. Changed the contract instead (1.1.0, `influencer` accepted, 1.0.0 kept in
+  history) after confirming with marketing that the channel launched in June 2026.
+* **How I verified it:** the v1.0 pipeline still exits 3 on 2026-07 (the post-mortem's reproduction); v1.1 runs, and
+  `parity.py --backcompat` on 2026-05 says every v1.0 number is unchanged.
+* **Time saved / lost (honest guess):** neutral.
+* **What I learned:** the fix for a contract break is a decision, not a patch.
+
+### 2026-08-05 · Phase 7 · Explaining drift to the Head of Growth
+* **Tool / model:** Gemini 2.5 Flash (free tier)
+* **Prompt (summary or paste):**
+  > Prompt 1 of Phase 7 with the monitoring section of metrics.json.
+* **What it produced:** a clear five-sentence summary that said "the June price rise caused the churn increase".
+* **What I kept / changed / rejected, and why:** kept the structure; replaced the causal sentence with "the price
+  change feature moved strongly (PSI 1.22) in the same month churn rose to 16.7 %", which is what the data shows.
+* **How I verified it:** every number against `metrics.json`; the causal claim against what PSI measures.
+* **Time saved / lost (honest guess):** saved ~20 minutes.
+* **What I learned:** monitoring shows *what* moved; *why* needs an experiment or the business context.

@@ -7,6 +7,26 @@ and the model artefact schema have their own versions, recorded in every `metric
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-06
+### Added
+- The 2026-07 export (January 2025 to July 2026) and its golden files (`contract/golden/*-2026-07.json`).
+- Data contract 1.1.0: channel `influencer`, the post-deployment snapshots (`recent` 2026-05, `holdout` 2026-06,
+  `score` 2026-07), the `monitoring` and `retraining` sections (`feature-spec.md` §9); 1.0.0 kept in
+  `contract/history/`.
+- Metrics schema 1.1 (additive): `monitoring` (PSI per feature and score, realised performance of the deployed
+  model per labelled month, alerts, status) and `retraining` (champion vs challenger on the holdout, decision).
+- Model artefact 1.1 (additive): `lineage`, `monitoring_reference`; `models/churncast-1.1.0.json` (the promoted,
+  recalibrated challenger).
+- API 1.1: `X-Request-ID` on every response, `model_version` and `request_id` in predict/explain, one JSON log line
+  per request, Prometheus `/metrics`; two more smoke checks.
+- `docs/postmortem-2026-07.md` (incident CC-2026-07), ADR-0006, the monitoring section of the runbook.
+### Changed
+- The default export is 2026-07 and the default model `churncast-1.1.0.json` (Makefiles, compose, Dockerfiles).
+- `docs/model-card.md` is regenerated from the 2026-07 golden files.
+### Compatibility
+- On 2026-05, every v1.0 field is unchanged (`scripts/parity.py --backcompat`); the v1.0 API serves a 1.1
+  artefact and the v1.1 API serves `churncast-1.0.0.json`.
+
 ## [1.0.0] - 2026-06-24
 ### Added
 - The churn model for the 2026-05 export in three tracks with identical outputs (Python: pandas, scikit-learn,
