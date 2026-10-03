@@ -3,13 +3,7 @@
 # When you start a milestone, delete its line here, watch the tests fail (red),
 # implement until they pass (green). See docs/phase-3.
 # ---------------------------------------------------------------------------
-PENDING <- c(
-  "test-data-golden.R" = "Phase 4 - golden metrics and model on the real export",
-  "test-data-invariants.R" = "Phase 4 - invariants on the real export",
-  "test-data-leakage.R" = "Phase 4 - leakage: point-in-time and banned columns",
-  "test-data-contract-violations.R" = "Phase 4 - contract violations stop the run",
-  "test-data-model-quality.R" = "Phase 4 - model quality and the gate"
-)
+PENDING <- c()
 
 skip_if_pending <- function(file) {
   if (file %in% names(PENDING)) skip(sprintf("PENDING (%s) - see tests/testthat/helper-churncast.R", PENDING[[file]]))

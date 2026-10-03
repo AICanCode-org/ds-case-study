@@ -92,3 +92,14 @@ Ollama model, ...) produced something you kept, changed or rejected.
 * **How I verified it:** `parity.py` against `contract/golden/model-2026-05.json` (MATCH after the change).
 * **Time saved / lost (honest guess):** saved ~10 minutes of typing, lost 20 finding the penalty.
 * **What I learned:** library defaults are modelling decisions; read them.
+
+### 2026-06-15 · Phase 4 · A leakage test that can fail
+* **Tool / model:** Claude (free tier)
+* **Prompt (summary or paste):**
+  > Prompt 2 of Phase 4: a test that appends future rows to every event table and expects past features unchanged.
+* **What it produced:** a working test, but the appended invoices reused existing invoice ids.
+* **What I kept / changed / rejected, and why:** kept the idea and structure; generated fresh ids, because reused
+  ids made the run stop on `invoices.invoice_id.unique` (exit 3) and the test passed for the wrong reason.
+* **How I verified it:** planted a leak (`created <= S`): the test went red; removed it: green.
+* **Time saved / lost (honest guess):** saved ~30 minutes.
+* **What I learned:** a test that passes on a planted bug is worse than no test.

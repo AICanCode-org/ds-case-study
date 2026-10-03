@@ -13,13 +13,7 @@ from churncast.load import load_raw
 # (reported as "s" by pytest). When you start a milestone, delete its line here,
 # watch the tests fail (red), implement until they pass (green). See docs/phase-3.
 # ---------------------------------------------------------------------------
-PENDING: dict[str, str] = {
-    "test_golden.py": "Phase 4 - golden metrics and model on the real export",
-    "test_invariants.py": "Phase 4 - invariants on the real export",
-    "test_leakage.py": "Phase 4 - leakage: point-in-time and banned columns",
-    "test_contract_violations.py": "Phase 4 - contract violations stop the run",
-    "test_model_quality.py": "Phase 4 - model quality and the gate",
-}
+PENDING: dict[str, str] = {}
 
 
 def pytest_collection_modifyitems(config, items):
