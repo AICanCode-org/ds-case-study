@@ -56,3 +56,15 @@ Ollama model, ...) produced something you kept, changed or rejected.
 * **How I verified it:** `grep`/counts on `invoices.csv` (`kind`, `status` values), and `feature-spec.md` §3.
 * **Time saved / lost (honest guess):** saved ~30 minutes of thinking, lost 10 checking invented fields.
 * **What I learned:** a label is a business definition; test only the cases the data can contain.
+
+### 2026-06-05 · Phase 2 · "Just use KFold(shuffle=True)"
+* **Tool / model:** Copilot Chat in VS Code
+* **Prompt (summary or paste):**
+  > Prompt 3 of Phase 2: attack my validation design (grouped folds by customer + out-of-time test).
+* **What it produced:** good points on fold sizes and on reporting the SD of fold AUCs; it also suggested a
+  shuffled `KFold` over all snapshots "to use more data".
+* **What I kept / changed / rejected, and why:** kept the SD and fold-size checks; rejected the shuffled split:
+  the same customer one month apart would sit in training and validation, and test months would leak into training.
+* **How I verified it:** reasoning from `feature-spec.md` §3, then later the invariant `customers_in_two_folds == 0`.
+* **Time saved / lost (honest guess):** neutral.
+* **What I learned:** an assistant optimises for "more data"; the plan must optimise for an honest estimate.
