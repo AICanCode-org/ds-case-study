@@ -1,0 +1,17 @@
+**/.venv
+**/venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/out
+**/coverage.xml
+**/.coverage
+**/htmlcov
+**/*.html
+!serving/static/index.html
+**/*_files
+.git
+.env
+docs
+cms
+spec

@@ -1,0 +1,79 @@
+# ChurnCast local stack.
+#   docker compose up -d --build            the prediction API on http://localhost:8000 (form at /, docs at /docs)
+#   docker compose --profile train up       every track trains on the same export, then the parity check
+# Optional AI explainer: AI_PROVIDER=llm LLM_BASE_URL=http://host.docker.internal:11434/v1 (see .env.example).
+name: churncast
+
+x-pipeline: &pipeline
+  profiles: ["train"]
+  volumes:
+    - ./data:/app/data:ro
+    - runs:/out
+  read_only: true
+  tmpfs: ["/tmp"]
+
+services:
+  api:
+    build: { context: ., dockerfile: serving/Dockerfile }
+    image: churncast-api:local
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      MODEL_PATH: ${MODEL_PATH:-/app/models/churncast-1.0.0.json}
+      AI_PROVIDER: ${AI_PROVIDER:-offline}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-4000}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes:
+      - runs:/runs:ro
+    read_only: true
+    tmpfs: ["/tmp"]
+
+  python:
+    <<: *pipeline
+    build: { context: ., dockerfile: tracks/python/Dockerfile }
+    image: churncast-python:local
+    command: ["run", "--data", "/app/data/raw/${EXPORT:-2026-05}", "--out", "/out/python"]
+
+  sql:
+    <<: *pipeline
+    build: { context: ., dockerfile: tracks/sql/Dockerfile }
+    image: churncast-sql:local
+    command: ["run", "--data", "/app/data/raw/${EXPORT:-2026-05}", "--out", "/out/sql"]
+
+  r:
+    <<: *pipeline
+    build: { context: ., dockerfile: tracks/r/Dockerfile, target: runtime }
+    image: churncast-r:local
+    command: ["run", "--data", "/app/data/raw/${EXPORT:-2026-05}", "--out", "/out/r"]
+
+  parity:
+    profiles: ["train"]
+    image: churncast-python:local
+    depends_on:
+      python: { condition: service_completed_successfully }
+      sql: { condition: service_completed_successfully }
+      r: { condition: service_completed_successfully }
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - runs:/out:ro
+    read_only: true
+    entrypoint: ["python", "/app/scripts/parity.py"]
+    command: ["/out/python/metrics.json", "/out/sql/metrics.json", "/out/r/metrics.json"]
+
+  parity-model:
+    profiles: ["train"]
+    image: churncast-python:local
+    depends_on:
+      parity: { condition: service_completed_successfully }
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - runs:/out:ro
+    read_only: true
+    entrypoint: ["python", "/app/scripts/parity.py"]
+    command: ["/out/python/model.json", "/out/sql/model.json", "/out/r/model.json"]
+
+volumes:
+  runs:
