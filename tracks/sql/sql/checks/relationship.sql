@@ -1,5 +1,5 @@
 -- failing rows = {column} has no matching customer_id in {to_table}
--- TODO(M2): one row (failing_rows, checked_rows); {table} and {column} come from the contract
 SELECT
-    NULL AS failing_rows,
-    NULL AS checked_rows
+    count(*) FILTER (WHERE {column} NOT IN (SELECT t.customer_id FROM {to_table} AS t)) AS failing_rows,
+    count(*) AS checked_rows
+FROM {table}

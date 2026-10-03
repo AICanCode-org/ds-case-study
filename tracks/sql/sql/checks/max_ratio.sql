@@ -1,5 +1,7 @@
 -- failing rows = {column} equals the check's value (in cfg_check_values); the check fails when their share > max
--- TODO(M2): one row (failing_rows, checked_rows); {table} and {column} come from the contract
 SELECT
-    NULL AS failing_rows,
-    NULL AS checked_rows
+    count(*) FILTER (
+        WHERE coalesce(CAST({column} AS VARCHAR) IN (SELECT v.value FROM cfg_check_values AS v), FALSE)
+    ) AS failing_rows,
+    count(*) AS checked_rows
+FROM {table}

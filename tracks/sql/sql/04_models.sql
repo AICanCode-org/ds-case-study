@@ -3,18 +3,36 @@
 -- all training rows and score the test snapshots or the training rows. B0 and B1 are fitted right here in SQL;
 -- the logistic regressions are fitted by the runner (the one step SQL cannot do) and scored back into `scored`.
 
--- TODO(M4) stage_rows: contract/feature-spec.md §5; tests: tests/unit/test_model.py
 CREATE OR REPLACE VIEW stage_rows AS
-SELECT NULL AS todo;
+SELECT
+    s.stage,
+    'fit' AS role,
+    f.customer_id,
+    f.snapshot
+FROM cfg_stages AS s
+INNER JOIN features AS f ON f.split = 'train' AND (s.fold IS NULL OR f.fold <> s.fold)
+UNION ALL
+SELECT
+    s.stage,
+    'eval' AS role,
+    f.customer_id,
+    f.snapshot
+FROM cfg_stages AS s
+INNER JOIN features AS f ON f.split = s.eval_split AND (s.fold IS NULL OR f.fold = s.fold);
 
 CREATE OR REPLACE TABLE scored (
     exp_id VARCHAR, stage VARCHAR, customer_id VARCHAR, snapshot VARCHAR, y INTEGER, p DOUBLE
 );
 
 -- B0 · prior: everyone gets the churn rate of the fit rows
--- TODO(M4) stage_prior: contract/feature-spec.md §5; tests: tests/unit/test_model.py
 CREATE OR REPLACE VIEW stage_prior AS
-SELECT NULL AS todo;
+SELECT
+    r.stage,
+    avg(f.churned) AS rate
+FROM stage_rows AS r
+INNER JOIN features AS f ON r.customer_id = f.customer_id AND r.snapshot = f.snapshot
+WHERE r.role = 'fit'
+GROUP BY r.stage;
 
 INSERT INTO scored
 SELECT
@@ -30,13 +48,31 @@ INNER JOIN stage_prior AS pr ON r.stage = pr.stage
 WHERE r.role = 'eval';
 
 -- B1 · rule of thumb: one point per flag of cfg_rules, then the churn rate of the fit rows per point count
--- TODO(M4) rule_points: contract/feature-spec.md §5; tests: tests/unit/test_model.py
 CREATE OR REPLACE TABLE rule_points AS
-SELECT NULL AS todo;
+SELECT
+    f.customer_id,
+    f.snapshot,
+    coalesce(sum(
+        CASE
+            WHEN ru.op = '>=' THEN CAST(l.value >= ru.value AS INTEGER)
+            WHEN ru.op = '<=' THEN CAST(l.value <= ru.value AS INTEGER)
+        END
+    ), 0) AS points
+FROM features AS f
+LEFT JOIN feature_long AS l ON f.customer_id = l.customer_id AND f.snapshot = l.snapshot
+LEFT JOIN cfg_rules AS ru ON l.feature = ru.feature
+GROUP BY f.customer_id, f.snapshot;
 
--- TODO(M4) stage_rule_rates: contract/feature-spec.md §5; tests: tests/unit/test_model.py
 CREATE OR REPLACE VIEW stage_rule_rates AS
-SELECT NULL AS todo;
+SELECT
+    r.stage,
+    rp.points,
+    avg(f.churned) AS rate
+FROM stage_rows AS r
+INNER JOIN features AS f ON r.customer_id = f.customer_id AND r.snapshot = f.snapshot
+INNER JOIN rule_points AS rp ON r.customer_id = rp.customer_id AND r.snapshot = rp.snapshot
+WHERE r.role = 'fit'
+GROUP BY r.stage, rp.points;
 
 INSERT INTO scored
 SELECT
