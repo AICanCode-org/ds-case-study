@@ -1,6 +1,6 @@
 Package: churncast
 Title: ChurnCast Churn Model, R Track
-Version: 1.0.0
+Version: 1.1.0
 Authors@R: person("AiCanCode", "Maintainers", email = "maintainers@aicancode.org", role = c("aut", "cre"))
 Description: Cleans the TiffinBox subscription exports, checks the shared data contract, builds point-in-time
     churn features and trains and evaluates the churn model with tidymodels (rsample, parsnip, workflows,

@@ -11,10 +11,14 @@ month_label <- function(index) sprintf("%04d-%02d", index %/% 12L, index %% 12L 
 
 month_start <- function(index) as.POSIXct(sprintf("%s-01 00:00:00", month_label(index)), tz = "UTC")
 
+#' Every contract snapshot the export covers; recent/holdout (1.1) also need their label month in the export.
 snapshot_months <- function(contract, export_month) {
-  labels <- unlist(lapply(SPLITS, function(s) unlist(contract$snapshots[[s]])))
-  months <- sort(unique(month_index(labels)))
-  months[months <= export_month]
+  months <- unlist(lapply(SPLITS, function(s) {
+    m <- month_index(unlist(contract$snapshots[[s]]))
+    lag <- if (s %in% c("recent", "holdout")) 1L else 0L
+    m[m + lag <= export_month]
+  }))
+  sort(unique(months))
 }
 
 split_of <- function(month, contract) {

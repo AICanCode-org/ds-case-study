@@ -3,7 +3,7 @@
 #   docker build -f tracks/r/Dockerfile --target dev -t churncast-r-dev:local .     (from the repo root)
 #   docker run --rm -v "$PWD":/repo -w /repo/tracks/r churncast-r-dev:local make test
 R ?= Rscript
-DATA ?= ../../data/raw/2026-05
+DATA ?= ../../data/raw/2026-07
 OUT ?= out
 
 .PHONY: install lint test coverage run report gate clean

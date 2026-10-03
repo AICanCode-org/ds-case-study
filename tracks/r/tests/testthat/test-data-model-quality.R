@@ -45,7 +45,7 @@ test_that("the retention campaign is worth more than the rule", {
 })
 
 test_that("training twice gives identical results", {
-  again <- analyse(EXPORT_V10, CONTRACT)
+  again <- analyse(EXPORT_V11, CONTRACT)
   expect_identical(again$metrics, real_result()$metrics)
   expect_identical(again$artefact$coefficients, real_result()$artefact$coefficients)
 })

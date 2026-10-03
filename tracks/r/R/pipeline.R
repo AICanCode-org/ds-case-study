@@ -6,7 +6,8 @@
 # out/experiments.jsonl  the experiment log: one line per experiment
 
 TRACK <- "r"
-VERSION <- "1.0.0"
+VERSION <- "1.1.0"
+ARTEFACT_TEST_KEYS <- c("auc", "average_precision", "brier", "ece", "precision_at_top", "recall_at_top")
 
 experiment_features <- function(exp, contract) {
   if (exp$kind != "logistic") return(character(0))
@@ -62,7 +63,16 @@ choose_champion <- function(experiments, contract) {
                                         format(need), simple$id))
 }
 
-analyse <- function(data_dir, contract = load_contract()) {
+#' The deployed model (1.1): $DEPLOYED_MODEL_PATH, or the contract's path relative to the repository root (the folder
+#' that holds contract/).
+load_deployed <- function(contract) {
+  path <- Sys.getenv("DEPLOYED_MODEL_PATH", "")
+  if (!nzchar(path)) path <- file.path(dirname(contract_path()), "..", contract$monitoring$deployed_model)
+  if (!file.exists(path)) stop(sprintf("deployed model not found: %s", path))
+  jsonlite::read_json(path, simplifyVector = FALSE)
+}
+
+analyse <- function(data_dir, contract = load_contract(), deployed = NULL) {
   export <- load_export(data_dir)
   raw <- load_raw(data_dir, contract)
   cleaned <- clean_tables(raw, contract)
@@ -118,9 +128,34 @@ analyse <- function(data_dir, contract = load_contract()) {
   training <- list(export = export$export, contract_version = contract$contract_version,
                    snapshots = as.list(unlist(contract$snapshots$train)), rows = nrow(train),
                    churners = sum(train$churned))
+  bins <- if (is.null(contract$monitoring$psi_bins)) 10L else contract$monitoring$psi_bins
   artefact <- build_artefact(fit, champion$id, used, means, threshold, mean(train$churned), training,
-                             test_m[c("auc", "average_precision", "brier", "ece", "precision_at_top",
-                                      "recall_at_top")], VERSION, TRACK)
+                             test_m[ARTEFACT_TEST_KEYS], VERSION, TRACK,
+                             reference_profile(train, used, predict_logistic(fit, train), bins),
+                             list(parent_model_version = NULL,
+                                  trained_on = as.list(unlist(contract$snapshots$train))))
+  post <- list()
+  labelled <- unique(features$split[!is.na(features$churned)])
+  if (!is.null(contract$monitoring) && all(c("recent", "holdout") %in% labelled)) {
+    if (is.null(deployed)) deployed <- load_deployed(contract)
+    post$monitoring <- monitor(features, deployed, contract)
+    r <- retrain(features, deployed, contract)
+    post$retraining <- r$section
+    sec <- r$section
+    refit <- r$refit_rows
+    artefact <- build_artefact(
+      r$fit, champion$id, used, lapply(stats::setNames(used, used), function(f) mean(refit[[f]])),
+      quantile7(r$calibration_scores, 0.9), mean(as.integer(r$calibration_rows$churned)),
+      list(export = export$export, contract_version = contract$contract_version,
+           snapshots = sec$challenger$refit_snapshots, rows = nrow(refit), churners = sum(refit$churned)),
+      sec$challenger_holdout[ARTEFACT_TEST_KEYS], VERSION, TRACK,
+      reference_profile(refit, used, predict_logistic(r$fit, refit), bins),
+      list(parent_model_version = deployed$model_version, refit_snapshots = sec$challenger$refit_snapshots,
+           calibration_snapshot = sec$challenger$calibration_snapshot,
+           calibration_offset = sec$challenger$calibration_offset, decided_on = sec$holdout$snapshot,
+           decision = sec$decision)
+    )
+  }
   importance <- lapply(used, function(f) {
     list(feature = f, coefficient = fit$coefficients[[f]], sd = sds[[f]],
          standardised = fit$coefficients[[f]] * sds[[f]])
@@ -128,7 +163,7 @@ analyse <- function(data_dir, contract = load_contract()) {
   importance <- importance[order(-vapply(importance, function(r) abs(r$standardised), numeric(1)))]
   fold_ids <- seq_len(contract$snapshots$folds) - 1L
   metrics <- list(
-    schema_version = "1.0",
+    schema_version = "1.1",
     generator = list(track = TRACK, version = VERSION),
     dataset = list(export = export$export, period_end = export$period_end,
                    contract_version = contract$contract_version),
@@ -158,6 +193,7 @@ analyse <- function(data_dir, contract = load_contract()) {
     fairness = fair,
     gate = verdict
   )
+  metrics <- c(metrics, post)
   list(metrics = metrics, artefact = artefact, features = features)
 }
 

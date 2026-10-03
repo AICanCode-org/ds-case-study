@@ -18,6 +18,7 @@ RUN sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources \
 # runtime: the pipeline only, as a non-root user (two layers on top of base: vfs/overlay copies stay small)
 FROM scratch AS src
 COPY contract /app/contract
+COPY models /app/models
 COPY tracks/r/DESCRIPTION tracks/r/NAMESPACE tracks/r/LICENSE tracks/r/run.R /app/tracks/r/
 COPY tracks/r/R /app/tracks/r/R
 
@@ -27,4 +28,4 @@ COPY --from=src /app /app
 WORKDIR /app/tracks/r
 USER 10001
 ENTRYPOINT ["Rscript", "run.R"]
-CMD ["run", "--data", "/app/data/raw/2026-05", "--out", "/out"]
+CMD ["run", "--data", "/app/data/raw/2026-07", "--out", "/out"]

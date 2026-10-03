@@ -2,11 +2,11 @@
 # Schema: contract/model.schema.json. Explanations are exact for a linear model: the contribution of feature j is
 # beta_j * (x_j - mean_j) on the log-odds scale (the training mean is the baseline).
 
-SCHEMA_VERSION <- "1.0"
+SCHEMA_VERSION <- "1.1"  # 1.1 adds monitoring_reference and lineage (additive)
 
 build_artefact <- function(fit, experiment, features, means, threshold, base_rate, training, test_metrics,
-                           version, track) {
-  list(
+                           version, track, monitoring_reference = NULL, lineage = NULL) {
+  out <- list(
     schema_version = SCHEMA_VERSION,
     name = "churncast",
     model_version = version,
@@ -20,9 +20,12 @@ build_artefact <- function(fit, experiment, features, means, threshold, base_rat
     high_risk_threshold = threshold,
     base_rate = base_rate,
     training = training,
-    test_metrics = test_metrics,
-    generator = list(track = track, version = version)
+    test_metrics = test_metrics
   )
+  if (!is.null(monitoring_reference)) out$monitoring_reference <- monitoring_reference
+  if (!is.null(lineage)) out$lineage <- lineage
+  out$generator <- list(track = track, version = version)
+  out
 }
 
 score <- function(artefact, row) {

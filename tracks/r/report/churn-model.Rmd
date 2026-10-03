@@ -5,7 +5,7 @@ output:
   html_document:
     toc: true
 params:
-  data: "../../../data/raw/2026-05"
+  data: "../../../data/raw/2026-07"
 ---
 
 ```{r setup, include = FALSE}
@@ -30,12 +30,15 @@ probability that they will not pay next month. Export **`r m$dataset$export`**, 
 knitr::kable(data.frame(issue = names(m$data_quality$issues), rows = unlist(m$data_quality$issues)), row.names = FALSE)
 ```
 
-## 3. Churn per snapshot (train = grey, out-of-time test = red)
+## 3. Churn per snapshot (train = grey, out-of-time test = red; after deployment: recent, holdout, score)
 
 ```{r snapshots}
-s <- do.call(rbind, lapply(m$snapshots, as.data.frame))
+s <- do.call(rbind, lapply(m$snapshots, function(x) {
+  data.frame(snapshot = x$snapshot, split = x$split, churn_rate = if (is.null(x$churn_rate)) NA else x$churn_rate)
+}))
+s <- s[!is.na(s$churn_rate), ]  # the score month has no label yet
 ggplot(s, aes(snapshot, churn_rate, fill = split)) + geom_col() +
-  scale_fill_manual(values = c(train = "#9aa5b1", test = "#d64545")) +
+  scale_fill_manual(values = c(train = "#9aa5b1", test = "#d64545", recent = "#e8a33d", holdout = "#3b6ea8")) +
   scale_y_continuous(labels = scales::percent) + labs(x = NULL, y = "churn next month")
 ```
 
@@ -95,3 +98,36 @@ knitr::kable(do.call(rbind, lapply(m$gate$checks, as.data.frame)), digits = 4, r
 ```
 
 Gate: **`r if (m$gate$passed) "PASSED" else "FAILED"`**.
+
+## 9. v1.1: monitoring the deployed model
+
+```{r monitoring, eval = !is.null(m$monitoring)}
+mon <- m$monitoring
+psi <- do.call(rbind, lapply(mon$drift, function(d) {
+  data.frame(snapshot = d$snapshot, feature = names(d$feature_psi), psi = unlist(d$feature_psi))
+}))
+ggplot(psi, aes(psi, feature, fill = snapshot)) + geom_col(position = "dodge") +
+  geom_vline(xintercept = c(0.1, 0.25), linetype = "dashed", colour = c("#9aa5b1", "#d64545")) +
+  labs(x = "PSI vs the training months", y = NULL)
+perf <- do.call(rbind, lapply(mon$performance, function(p) as.data.frame(p[c("snapshot", "rows", "auc", "brier", "ece",
+                                                                               "mean_pred", "observed_rate")])))
+knitr::kable(perf, digits = 4, row.names = FALSE)
+```
+
+```{r alerts, eval = !is.null(m$monitoring), results = "asis"}
+cat(paste0("- ", unlist(mon$alerts), collapse = "\n"), "\n\nStatus: **", mon$status, "**\n", sep = "")
+```
+
+## 10. v1.1: champion vs challenger on the holdout month
+
+```{r challenger, eval = !is.null(m$retraining)}
+rt <- m$retraining
+keys <- c("auc", "brier", "ece", "mean_pred", "observed_rate", "precision_at_top", "recall_gap")
+knitr::kable(data.frame(metric = keys, champion = unlist(rt$champion_holdout[keys]),
+                        challenger = unlist(rt$challenger_holdout[keys])), digits = 4, row.names = FALSE)
+knitr::kable(do.call(rbind, lapply(rt$gate$checks, as.data.frame)), digits = 4, row.names = FALSE)
+```
+
+```{r decision, eval = !is.null(m$retraining), results = "asis"}
+cat("Decision: **", rt$decision, "** (calibration offset ", round(rt$challenger$calibration_offset, 4), ").\n", sep = "")
+```

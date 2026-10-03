@@ -8,7 +8,9 @@ artefact <- function() {
 
 test_that("the artefact shape", {
   a <- artefact()
-  expect_identical(a$schema_version, "1.0")
+  expect_identical(a$schema_version, "1.1")
+  expect_null(a$monitoring_reference)
+  expect_null(a$lineage)
   expect_identical(names(a$coefficients), unlist(a$features))
   expect_identical(a$generator, list(track = "r", version = "1.0.0"))
   json <- jsonlite::fromJSON(to_json(a), simplifyVector = FALSE)
@@ -27,4 +29,11 @@ test_that("contributions add up and are sorted", {
   at_mean <- a$intercept + sum(unlist(a$coefficients) * unlist(a$feature_means))
   p <- score(a, row)
   expect_equal(sum(vapply(c, function(r) r$contribution, 0)), log(p / (1 - p)) - at_mean)
+})
+
+test_that("monitoring_reference and lineage are additive and come before the generator", {
+  a <- build_artefact(FIT, "E2", c("a", "b"), list(a = 1, b = 0.5), 0.3, 0.1, list(), list(), "1.1.0", "r",
+                      list(bins = 10L), list(parent_model_version = "1.0.0"))
+  expect_identical(a$lineage, list(parent_model_version = "1.0.0"))
+  expect_identical(utils::tail(names(a), 3), c("monitoring_reference", "lineage", "generator"))
 })
