@@ -19,7 +19,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     environment:
-      MODEL_PATH: ${MODEL_PATH:-/app/models/churncast-1.0.0.json}
+      MODEL_PATH: ${MODEL_PATH:-/app/models/churncast-1.1.0.json}
       AI_PROVIDER: ${AI_PROVIDER:-offline}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_MODEL: ${LLM_MODEL:-llama3.2}
@@ -35,19 +35,19 @@ services:
     <<: *pipeline
     build: { context: ., dockerfile: tracks/python/Dockerfile }
     image: churncast-python:local
-    command: ["run", "--data", "/app/data/raw/${EXPORT:-2026-05}", "--out", "/out/python"]
+    command: ["run", "--data", "/app/data/raw/${EXPORT:-2026-07}", "--out", "/out/python"]
 
   sql:
     <<: *pipeline
     build: { context: ., dockerfile: tracks/sql/Dockerfile }
     image: churncast-sql:local
-    command: ["run", "--data", "/app/data/raw/${EXPORT:-2026-05}", "--out", "/out/sql"]
+    command: ["run", "--data", "/app/data/raw/${EXPORT:-2026-07}", "--out", "/out/sql"]
 
   r:
     <<: *pipeline
     build: { context: ., dockerfile: tracks/r/Dockerfile, target: runtime }
     image: churncast-r:local
-    command: ["run", "--data", "/app/data/raw/${EXPORT:-2026-05}", "--out", "/out/r"]
+    command: ["run", "--data", "/app/data/raw/${EXPORT:-2026-07}", "--out", "/out/r"]
 
   parity:
     profiles: ["train"]

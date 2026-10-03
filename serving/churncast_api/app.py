@@ -1,10 +1,15 @@
-"""ChurnCast prediction API (v1.0).
+"""ChurnCast prediction API (v1.1).
 
 GET  /health         liveness + which model is loaded
 GET  /v1/model       the model card in JSON: features (with units and allowed ranges), threshold, test metrics
 POST /v1/predict     up to MAX_BATCH customers -> churn probability, risk band, top 3 reasons
 POST /v1/explain     one customer -> probability + a plain-language note (template, or optional AI explainer)
+GET  /metrics        Prometheus metrics (1.1)
 GET  /               a small HTML form to try it
+
+1.1 (additive): every response carries an X-Request-ID header (the caller's, if it is a safe token, else a new one);
+predict and explain also return model_version and request_id. One JSON log line per request (observability.py).
+The default model is models/churncast-1.1.0.json; any 1.x artefact loads.
 
 Invalid input gets 422 application/problem+json listing every problem. Customer ids are opaque labels echoed back;
 they are never logged and never sent to the AI provider.
@@ -14,24 +19,27 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 
 from . import __version__
 from .explainer import Settings, explain
 from .model import Model, load_model
+from .observability import Metrics, request_id_from
 
 MAX_BATCH = 1000
 ROOT = Path(__file__).resolve().parents[2]
 STATIC = Path(__file__).resolve().parents[1] / "static"
 log = logging.getLogger("churncast.api")
+access = logging.getLogger("churncast.access")
 
 
 def default_paths() -> dict[str, str]:
     return {
-        "model": os.environ.get("MODEL_PATH", str(ROOT / "models" / "churncast-1.0.0.json")),
+        "model": os.environ.get("MODEL_PATH", str(ROOT / "models" / "churncast-1.1.0.json")),
         "contract": os.environ.get("CONTRACT_PATH", str(ROOT / "contract" / "data-contract.yaml")),
         "schema": os.environ.get("MODEL_SCHEMA_PATH", str(ROOT / "contract" / "model.schema.json")),
     }
@@ -50,13 +58,44 @@ def create_app(model: Model | None = None, settings: Settings | None = None) -> 
         model = load_model(p["model"], p["contract"], p["schema"])
     ai = settings or Settings.from_env()
     app = FastAPI(title="ChurnCast API", version=__version__, docs_url="/docs", redoc_url=None)
+    metrics = Metrics()
+    app.state.metrics = metrics
+    info = {
+        "model_version": model.version,
+        "schema_version": model.artefact["schema_version"],
+        "track": model.artefact["generator"]["track"],
+    }
     log.info(
         "model %s (%s, track %s) loaded; explainer provider %s",
         model.version,
         model.artefact["experiment"],
         model.artefact["generator"]["track"],
         ai.provider,
+        extra={"model_version": model.version},
     )
+
+    @app.middleware("http")
+    async def observe(request: Request, call_next):
+        rid = request_id_from(request.headers.get("x-request-id"))
+        request.state.request_id = rid
+        start = time.perf_counter()
+        response = await call_next(request)
+        seconds = time.perf_counter() - start
+        route = request.scope.get("route")
+        path = getattr(route, "path", "unmatched")  # the route template, never the raw URL
+        response.headers["X-Request-ID"] = rid
+        metrics.observe(request.method, path, response.status_code, seconds)
+        access.info(
+            "request",
+            extra={
+                "request_id": rid,
+                "method": request.method,
+                "route": path,
+                "status": response.status_code,
+                "duration_ms": round(seconds * 1000, 2),
+            },
+        )
+        return response
 
     async def body_of(request: Request) -> tuple[dict | None, JSONResponse | None]:
         try:
@@ -136,7 +175,8 @@ def create_app(model: Model | None = None, settings: Settings | None = None) -> 
                     ],
                 }
             )
-        return {"predictions": out}
+        metrics.predicted(len(out))
+        return {"model_version": model.version, "request_id": request.state.request_id, "predictions": out}
 
     @app.post("/v1/explain")
     async def explain_one(request: Request):
@@ -149,9 +189,24 @@ def create_app(model: Model | None = None, settings: Settings | None = None) -> 
         row = body["features"]
         p = model.score(row)
         note = explain(model, row, ai)
+        metrics.predicted(1)
         if note.fallback:
-            log.warning("explainer fell back to the template: %s", note.reason)
-        return {"churn_probability": round(p, 6), "risk_band": model.risk_band(p), "explanation": note.to_dict()}
+            metrics.fell_back(note.reason or "unknown")
+            log.warning(
+                "explainer fell back to the template",
+                extra={"request_id": request.state.request_id, "reason": note.reason},
+            )
+        return {
+            "model_version": model.version,
+            "request_id": request.state.request_id,
+            "churn_probability": round(p, 6),
+            "risk_band": model.risk_band(p),
+            "explanation": note.to_dict(),
+        }
+
+    @app.get("/metrics", include_in_schema=False)
+    def prometheus():
+        return PlainTextResponse(metrics.render(info), media_type="text/plain; version=0.0.4")
 
     @app.get("/", include_in_schema=False)
     def index():

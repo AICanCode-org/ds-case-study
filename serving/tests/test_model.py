@@ -8,7 +8,7 @@ from tests.conftest import REPO
 
 
 def test_the_shipped_model_loads(model):
-    assert model.version == "1.0.0"
+    assert model.version == "1.1.0" and model.artefact["lineage"]["parent_model_version"] == "1.0.0"
     assert model.features == model.artefact["features"]
     assert set(model.specs) >= set(model.features)
 

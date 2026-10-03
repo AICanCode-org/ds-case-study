@@ -2,7 +2,7 @@ from churncast_api.app import MAX_BATCH, create_app
 
 
 def test_health_and_model(client, model):
-    assert client.get("/health").json() == {"status": "ok", "model_version": "1.0.0"}
+    assert client.get("/health").json() == {"status": "ok", "model_version": "1.1.0"}
     m = client.get("/v1/model").json()
     assert [f["name"] for f in m["features"]] == model.features
     assert m["explainer"] == {"provider": "offline"}
@@ -55,4 +55,4 @@ def test_the_app_loads_the_default_model(monkeypatch):
     monkeypatch.delenv("MODEL_PATH", raising=False)
     from fastapi.testclient import TestClient
 
-    assert TestClient(create_app()).get("/health").json()["model_version"] == "1.0.0"
+    assert TestClient(create_app()).get("/health").json()["model_version"] == "1.1.0"

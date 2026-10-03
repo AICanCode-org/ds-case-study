@@ -1,6 +1,6 @@
-# ChurnCast prediction API (the v1.0 release). Build from the repo root:
+# ChurnCast prediction API (v1.1: request ids, JSON logs, /metrics). Build from the repo root:
 #   docker build -f serving/Dockerfile -t churncast-api:local .
-# Serves models/churncast-1.0.0.json by default; MODEL_PATH picks another artefact (any track's model.json).
+# Serves models/churncast-1.1.0.json by default; MODEL_PATH picks another artefact (any 1.x model.json of any track).
 FROM scratch AS src
 COPY contract/data-contract.yaml contract/model.schema.json /app/contract/
 COPY models /app/models
@@ -9,7 +9,7 @@ COPY serving/static /app/serving/static
 
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    HOME=/tmp AI_PROVIDER=offline MODEL_PATH=/app/models/churncast-1.0.0.json
+    HOME=/tmp AI_PROVIDER=offline MODEL_PATH=/app/models/churncast-1.1.0.json
 RUN --mount=type=bind,source=serving/requirements.txt,target=/tmp/requirements.txt \
     pip install -r /tmp/requirements.txt \
  && useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin churncast
