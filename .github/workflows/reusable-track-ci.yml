@@ -1,0 +1,96 @@
+# Reusable workflow: the full check for ONE track. Called by ci.yml once per track.
+# Every track exposes the same Makefile targets (install, lint, test, coverage, run, report, gate), so the steps
+# are identical; only the toolchain differs. The R track runs every target inside its pinned Docker image, so CI
+# uses exactly the R, tidymodels and lintr versions you use locally.  Explained in docs/github-actions-explained.md §7.
+name: Reusable · track CI
+
+on:
+  workflow_call:
+    inputs:
+      track:
+        description: "python | sql | r"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lint · unit · data · coverage · run · gate · report
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: tracks/${{ inputs.track }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12 (+ pip cache)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: ${{ inputs.track != 'r' && 'pip' || '' }}
+          cache-dependency-path: tracks/${{ inputs.track }}/requirements-dev.txt
+      - name: Install dependencies
+        if: inputs.track != 'r'
+        run: make install
+
+      - if: inputs.track == 'r'
+        uses: docker/setup-buildx-action@v3
+      - name: Build the R toolchain image (R 4.6.1 + dated CRAN snapshot, cached between runs)
+        if: inputs.track == 'r'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: tracks/r/Dockerfile
+          target: dev
+          tags: churncast-r-dev:ci
+          load: true
+          cache-from: type=gha,scope=r-dev
+          cache-to: type=gha,mode=max,scope=r-dev
+      - name: Run make inside the R image (or directly for Python and SQL)
+        run: |
+          if [ "${{ inputs.track }}" = r ]; then
+            echo "IN=docker run --rm --network none -u $(id -u):$(id -g) -e HOME=/tmp -v ${{ github.workspace }}:/repo -w /repo/tracks/r churncast-r-dev:ci" >> "$GITHUB_ENV"
+          else
+            echo "IN=" >> "$GITHUB_ENV"
+          fi
+
+      - name: Lint
+        run: $IN make lint
+      - name: Unit tests
+        run: $IN make test
+      - name: Unit + data and model tests with coverage gate (≥ 85 % lines)
+        run: $IN make coverage
+      - name: features.csv, metrics.json, model.json for the committed export
+        run: $IN make run OUT=out
+      - name: Outputs match the contract's schemas
+        run: |
+          python3 -m pip install -q jsonschema==4.26.0
+          python3 ../../scripts/validate_outputs.py out
+      - name: Evaluation gate (the model may only ship if every check passes)
+        run: python3 ../../scripts/eval_gate.py out/metrics.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Report, executed top to bottom from a clean checkout
+        run: $IN make report OUT=out
+
+      - name: Upload the run outputs (the parity job compares the tracks)
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-${{ inputs.track }}
+          path: |
+            tracks/${{ inputs.track }}/out/metrics.json
+            tracks/${{ inputs.track }}/out/model.json
+            tracks/${{ inputs.track }}/out/features.csv
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload the report and coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ inputs.track }}
+          path: |
+            tracks/${{ inputs.track }}/out/
+            tracks/${{ inputs.track }}/coverage.xml
+          if-no-files-found: ignore
+          retention-days: 7

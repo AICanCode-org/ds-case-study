@@ -1,0 +1,13 @@
+# Dependabot opens PRs for dependency updates. Minor/patch updates are grouped per ecosystem so you get one PR a
+# week instead of twenty. A dependency update in a modelling project is only safe if the golden files still match:
+# CI's parity job is what tells you (a new scikit-learn or DuckDB may move the 7th digit of a coefficient).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directories: [/tracks/python, /tracks/sql]
+    schedule: { interval: weekly }
+    groups:
+      python-minor-patch: { update-types: [minor, patch] }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

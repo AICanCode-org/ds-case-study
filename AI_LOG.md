@@ -103,3 +103,15 @@ Ollama model, ...) produced something you kept, changed or rejected.
 * **How I verified it:** planted a leak (`created <= S`): the test went red; removed it: green.
 * **Time saved / lost (honest guess):** saved ~30 minutes.
 * **What I learned:** a test that passes on a planted bug is worse than no test.
+
+### 2026-06-17 · Phase 5 · Installing R on the runner
+* **Tool / model:** ChatGPT (free tier)
+* **Prompt (summary or paste):**
+  > Prompt 1 of Phase 5: explain the reusable workflow; can the R job be simpler?
+* **What it produced:** replace the Docker build with `r-lib/actions/setup-r` + `setup-r-dependencies`.
+* **What I kept / changed / rejected, and why:** rejected for this project: those actions install the latest
+  CRAN versions, so a lintr or parsnip release could turn CI red (or move a coefficient) without any change of
+  ours. Kept the image built from a dated snapshot, with the GHA layer cache for speed.
+* **How I verified it:** two runs of the R job: first build ~5 min, cached build < 1 min; same results locally.
+* **Time saved / lost (honest guess):** neutral.
+* **What I learned:** "simpler" CI that is not reproducible moves the cost to the day it breaks.
