@@ -1,0 +1,7 @@
+# Exact versions: the image, CI and your laptop serve with the same stack.
+fastapi==0.142.2
+starlette==1.7.0
+pydantic==2.13.5
+uvicorn==0.54.0
+PyYAML==6.0.3
+jsonschema==4.26.0

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChurnCast: try the model</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; color: #1f2933; }
+  h1 { font-size: 1.4rem; } label { display: grid; grid-template-columns: 1fr 9rem; gap: .5rem; margin: .25rem 0; }
+  input { padding: .25rem; } button { margin-top: 1rem; padding: .5rem 1rem; }
+  #result { margin-top: 1.5rem; padding: 1rem; background: #f5f7fa; border-radius: .5rem; white-space: pre-wrap; }
+  small { color: #616e7c; }
+</style>
+</head>
+<body>
+<h1>ChurnCast: churn risk for one TiffinBox subscriber</h1>
+<p><small>Fictional data. The note is written by the deterministic template unless an AI provider is configured;
+it never sees a customer id. <a href="/docs">API docs</a></small></p>
+<form id="f"></form>
+<button id="go" type="button">Score and explain</button>
+<div id="result" aria-live="polite"></div>
+<script>
+const form = document.getElementById("f");
+const result = document.getElementById("result");
+let features = [];
+fetch("/v1/model").then(r => r.json()).then(m => {
+  features = m.features;
+  for (const f of features) {
+    const label = document.createElement("label");
+    label.textContent = f.display + " (" + f.unit + ")";
+    const input = document.createElement("input");
+    input.type = "number"; input.name = f.name; input.min = f.min; input.max = f.max;
+    input.step = f.type === "float" ? "0.01" : "1";
+    input.value = f.type === "float" ? f.training_mean.toFixed(2) : Math.round(f.training_mean);
+    label.appendChild(input); form.appendChild(label);
+  }
+});
+document.getElementById("go").addEventListener("click", async () => {
+  const row = {};
+  for (const f of features) row[f.name] = Number(form.elements[f.name].value);
+  const r = await fetch("/v1/explain", {method: "POST", headers: {"Content-Type": "application/json"},
+                                        body: JSON.stringify({features: row})});
+  const d = await r.json();
+  result.textContent = r.ok
+    ? (100 * d.churn_probability).toFixed(1) + " % (" + d.risk_band + " risk)\n\n" + d.explanation.text +
+      "\n\nsource: " + d.explanation.source + (d.explanation.fallback ? " (fallback: " + d.explanation.reason + ")" : "")
+    : d.title + "\n" + (d.errors || []).map(e => e.field + ": " + e.problem).join("\n");
+});
+</script>
+</body>
+</html>
