@@ -16,8 +16,8 @@ Every file is compared with the first one. The tolerances are part of the contra
     python3 scripts/parity.py --backcompat contract/golden/metrics-2026-05.json out/metrics.json
 
 --backcompat (v1.1): the first file is OLDER. Fields that only the newer file has are allowed (schema changes are
-additive) and schema_version / contract_version may differ; every field of the old file must still be there with
-the same value. Standard library only; exit code 1 on any difference, with the path of each one.
+additive) and schema_version / contract_version / model_version may differ; every field of the old file must still
+be there with the same value. Standard library only; exit code 1 on any difference, with the path of each one.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ import sys
 JSON_ABS = JSON_REL = 1e-6
 CSV_REL, CSV_ABS = 1e-9, 1e-12
 IGNORE = {"generator"}
-BACKCOMPAT_IGNORE = {"$.schema_version", "$.dataset.contract_version", "$.training.contract_version"}
+BACKCOMPAT_IGNORE = {"$.schema_version", "$.dataset.contract_version", "$.training.contract_version", "$.model_version"}
 
 
 def close(a: float, b: float, rel: float, abs_: float) -> bool:

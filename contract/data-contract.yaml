@@ -1,7 +1,7 @@
 # ChurnCast data contract: what a TiffinBox export must look like, how it is cleaned, which features the model may
 # use, how the model is evaluated and which numbers must hold before it can ship. Every track reads this file;
 # contract/feature-spec.md explains every rule in words. Change it with a PR and a version bump (Phase 7).
-contract_version: "1.0.0"
+contract_version: "1.1.0"   # 1.1.0: influencer channel, post-deployment snapshots, monitoring, retraining
 dataset: tiffinbox-subscriptions
 
 files:
@@ -30,6 +30,11 @@ snapshots:
   train: ["2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02"]
   test: ["2026-03", "2026-04"]
   folds: 5                        # fold = customer number mod 5 (C00042 -> 2): a customer never sits in two folds
+  # 1.1.0, after the v1.0 model went live (trained on train, tested on test). A labelled snapshot is used only when
+  # its label month is in the export; `score` only needs the snapshot month itself.
+  recent: ["2026-05"]             # labelled: recalibrates the challenger and is the first realised-performance check
+  holdout: ["2026-06"]            # labelled: champion vs challenger is decided here, on data neither has seen
+  score: ["2026-07"]              # unlabelled: the month the team calls next; drift is measured on it
 
 features:
   - {name: tenure_months, type: int, min: 0, max: 240, core: true, display: "months as a customer", unit: months}
@@ -83,13 +88,32 @@ gate:                              # the model ships only if every check passes 
   max_recall_gap: 0.15
   leakage_scan: true
 
+monitoring:                        # 1.1.0 (feature-spec §9): is the deployed model still fit for use?
+  deployed_model: models/churncast-1.0.0.json
+  psi_bins: 10                     # decile edges (type-7 quantiles) of the training rows
+  psi_floor: 0.0001                # an empty bin counts as this share (no log of zero)
+  psi_watch: 0.10                  # 0.10-0.25: watch; >= 0.25: drift
+  psi_drift: 0.25
+  alert_max_ece: 0.03
+  alert_max_mean_gap: 0.02         # |mean predicted - observed churn| of a labelled month
+  alert_min_auc: 0.72
+
+retraining:                        # 1.1.0: champion (deployed) vs challenger, decided on the holdout snapshot
+  refit_splits: [train, test]      # the challenger is refitted on every labelled pre-deployment snapshot
+  calibrate_on: recent             # then its intercept is recalibrated on the most recent labelled month
+  decide_on: holdout
+  max_auc_drop: 0.005              # challenger AUC >= champion AUC - 0.005
+  brier_must_improve: true         # challenger Brier < champion Brier
+  max_ece: 0.03
+  max_recall_gap: 0.15
+
 checks:
   - {id: customers.customer_id.unique, table: customers, type: unique, column: customer_id, severity: error}
   - {id: customers.signup_date.not_null, table: customers, type: not_null, column: signup_date, severity: error}
   - {id: customers.city.accepted, table: customers, type: accepted_values, column: city, severity: error,
      values: [pune, bengaluru, hyderabad, nagpur, indore]}
   - {id: customers.channel.accepted, table: customers, type: accepted_values, column: acquisition_channel, severity: error,
-     values: [organic, referral, paid_social, partner, unknown]}
+     values: [organic, referral, paid_social, partner, influencer, unknown]}   # influencer: new in 2026-06 (1.1.0)
   - {id: customers.age_band.accepted, table: customers, type: accepted_values, column: age_band, severity: error,
      values: ["18-24", "25-34", "35-44", "45+", unknown]}
   - {id: customers.channel.missing_share, table: customers, type: max_ratio, column: acquisition_channel, value: unknown,

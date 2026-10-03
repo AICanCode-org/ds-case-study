@@ -1,0 +1,1351 @@
+{
+  "schema_version": "1.1",
+  "generator": {
+    "track": "python",
+    "version": "1.1.0"
+  },
+  "dataset": {
+    "export": "2026-07",
+    "period_end": "2026-07-31",
+    "contract_version": "1.1.0"
+  },
+  "data_quality": {
+    "raw_rows": {
+      "customers": 6377,
+      "invoices": 34570,
+      "usage": 32826,
+      "tickets": 7628
+    },
+    "clean_rows": {
+      "customers": 6294,
+      "invoices": 34368,
+      "usage": 32539,
+      "tickets": 7612
+    },
+    "issues": {
+      "customers_invalid_signup_date": 4,
+      "customers_exact_duplicates": 79,
+      "customers_channel_missing": 508,
+      "customers_age_band_missing": 207,
+      "invoices_exact_duplicates": 173,
+      "invoices_orphans": 29,
+      "usage_exact_duplicates": 171,
+      "usage_negative_counts": 62,
+      "usage_orphans": 54,
+      "tickets_invalid_created_at": 0,
+      "tickets_resolved_before_created": 35,
+      "tickets_orphans": 16
+    },
+    "checks": [
+      {
+        "id": "customers.customer_id.unique",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "customers.signup_date.not_null",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "customers.city.accepted",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "customers.channel.accepted",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "customers.age_band.accepted",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "customers.channel.missing_share",
+        "severity": "warn",
+        "status": "pass",
+        "failing_rows": 508,
+        "observed": 0.08071178900540198
+      },
+      {
+        "id": "invoices.invoice_id.unique",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "invoices.kind.accepted",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "invoices.status.accepted",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "invoices.plan.accepted",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "invoices.list_price.range",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "invoices.customer.exists",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "usage.key.unique",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "usage.meals_ordered.range",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "usage.customer.exists",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "tickets.ticket_id.unique",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "tickets.category.accepted",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "tickets.customer.exists",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "raw.usage.negative_counts",
+        "severity": "warn",
+        "status": "pass",
+        "failing_rows": 62,
+        "observed": 0.0018887467251568878
+      },
+      {
+        "id": "snapshots.rows.min",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      },
+      {
+        "id": "snapshots.churn_rate.range",
+        "severity": "error",
+        "status": "pass",
+        "failing_rows": 0,
+        "observed": 0.0
+      }
+    ]
+  },
+  "snapshots": [
+    {
+      "snapshot": "2025-09",
+      "split": "train",
+      "rows": 1608,
+      "churned": 159,
+      "churn_rate": 0.09888059701492537
+    },
+    {
+      "snapshot": "2025-10",
+      "split": "train",
+      "rows": 1769,
+      "churned": 189,
+      "churn_rate": 0.10684002261164499
+    },
+    {
+      "snapshot": "2025-11",
+      "split": "train",
+      "rows": 1909,
+      "churned": 199,
+      "churn_rate": 0.10424305919329492
+    },
+    {
+      "snapshot": "2025-12",
+      "split": "train",
+      "rows": 2046,
+      "churned": 197,
+      "churn_rate": 0.09628543499511241
+    },
+    {
+      "snapshot": "2026-01",
+      "split": "train",
+      "rows": 2194,
+      "churned": 211,
+      "churn_rate": 0.09617137648131267
+    },
+    {
+      "snapshot": "2026-02",
+      "split": "train",
+      "rows": 2336,
+      "churned": 198,
+      "churn_rate": 0.08476027397260275
+    },
+    {
+      "snapshot": "2026-03",
+      "split": "test",
+      "rows": 2496,
+      "churned": 214,
+      "churn_rate": 0.08573717948717949
+    },
+    {
+      "snapshot": "2026-04",
+      "split": "test",
+      "rows": 2652,
+      "churned": 239,
+      "churn_rate": 0.09012066365007541
+    },
+    {
+      "snapshot": "2026-05",
+      "split": "recent",
+      "rows": 2791,
+      "churned": 391,
+      "churn_rate": 0.14009315657470442
+    },
+    {
+      "snapshot": "2026-06",
+      "split": "holdout",
+      "rows": 2873,
+      "churned": 479,
+      "churn_rate": 0.16672467803689522
+    },
+    {
+      "snapshot": "2026-07",
+      "split": "score",
+      "rows": 2873,
+      "churned": null,
+      "churn_rate": null
+    }
+  ],
+  "split": {
+    "train_snapshots": [
+      "2025-09",
+      "2025-10",
+      "2025-11",
+      "2025-12",
+      "2026-01",
+      "2026-02"
+    ],
+    "test_snapshots": [
+      "2026-03",
+      "2026-04"
+    ],
+    "train_rows": 11862,
+    "test_rows": 5148,
+    "train_churn_rate": 0.09720114651829372,
+    "test_churn_rate": 0.087995337995338,
+    "folds": [
+      {
+        "fold": 0,
+        "rows": 2273,
+        "customers": 649,
+        "churners": 252
+      },
+      {
+        "fold": 1,
+        "rows": 2553,
+        "customers": 681,
+        "churners": 216
+      },
+      {
+        "fold": 2,
+        "rows": 2290,
+        "customers": 652,
+        "churners": 240
+      },
+      {
+        "fold": 3,
+        "rows": 2428,
+        "customers": 665,
+        "churners": 233
+      },
+      {
+        "fold": 4,
+        "rows": 2318,
+        "customers": 644,
+        "churners": 212
+      }
+    ],
+    "customers_in_two_folds": 0
+  },
+  "leakage": {
+    "feature_auc": {
+      "tenure_months": 0.640808037139895,
+      "is_new": 0.6209957710388933,
+      "plan_standard": 0.5103142933572583,
+      "plan_premium": 0.5013817397675655,
+      "discount_share": 0.5895915821507504,
+      "price_change_pct": 0.509408116330162,
+      "meals_last_month": 0.6602341514788811,
+      "skip_rate_last_month": 0.7033188642505671,
+      "meals_trend": 0.5164116928502884,
+      "late_rate_3m": 0.510647762291843,
+      "avg_rating_3m": 0.6574294489473437,
+      "rating_missing": 0.5110982591828274,
+      "tickets_90d": 0.5356839295995449,
+      "open_tickets": 0.502753801444619,
+      "failed_payments_3m": 0.5095861284050175
+    },
+    "max_feature": "skip_rate_last_month",
+    "max_feature_auc": 0.7033188642505671,
+    "limit": 0.9,
+    "probe": "customers.cancellation_reason is filled",
+    "probe_auc": 0.8061443645531796,
+    "passed": true
+  },
+  "experiments": [
+    {
+      "id": "B0",
+      "name": "prior: everyone gets the training churn rate",
+      "kind": "prior",
+      "features": [],
+      "cv": {
+        "auc_mean": 0.5,
+        "auc_sd": 0.0,
+        "brier_mean": 0.08807536954185863,
+        "log_loss_mean": 0.31992639452235316,
+        "folds": [
+          {
+            "fold": 0,
+            "rows": 2273,
+            "auc": 0.5,
+            "brier": 0.09886104616689438,
+            "log_loss": 0.3499191514957917
+          },
+          {
+            "fold": 1,
+            "rows": 2553,
+            "auc": 0.5,
+            "brier": 0.07770568007523902,
+            "log_loss": 0.2913737881117955
+          },
+          {
+            "fold": 2,
+            "rows": 2290,
+            "auc": 0.5,
+            "brier": 0.0939084788674005,
+            "log_loss": 0.3360108200715894
+          },
+          {
+            "fold": 3,
+            "rows": 2428,
+            "auc": 0.5,
+            "brier": 0.08675713435901973,
+            "log_loss": 0.31613664529317187
+          },
+          {
+            "fold": 4,
+            "rows": 2318,
+            "auc": 0.5,
+            "brier": 0.08314450824073948,
+            "log_loss": 0.3061915676394174
+          }
+        ]
+      },
+      "test": {
+        "auc": 0.5,
+        "average_precision": 0.087995337995338,
+        "brier": 0.08033690539698553,
+        "log_loss": 0.29837223330310225,
+        "ece": 0.009205808522955702,
+        "contacted": 516,
+        "churners_reached": 25,
+        "precision_at_top": 0.04844961240310078,
+        "recall_at_top": 0.05518763796909492,
+        "lift_at_top": 0.5505929462498075,
+        "net_value_inr_per_month": -22771.875
+      }
+    },
+    {
+      "id": "B1",
+      "name": "rule of thumb: the retention team's risk flags",
+      "kind": "rule",
+      "features": [],
+      "cv": {
+        "auc_mean": 0.6665918079752469,
+        "auc_sd": 0.009766295309196303,
+        "brier_mean": 0.08428518338340973,
+        "log_loss_mean": 0.3007988410669336,
+        "folds": [
+          {
+            "fold": 0,
+            "rows": 2273,
+            "auc": 0.673310203184028,
+            "brier": 0.09413986258915433,
+            "log_loss": 0.3274079541439197
+          },
+          {
+            "fold": 1,
+            "rows": 2553,
+            "auc": 0.6615724892629044,
+            "brier": 0.07460362995798975,
+            "log_loss": 0.27482367038059485
+          },
+          {
+            "fold": 2,
+            "rows": 2290,
+            "auc": 0.6532113821138211,
+            "brier": 0.09031494051848815,
+            "log_loss": 0.31869650383869974
+          },
+          {
+            "fold": 3,
+            "rows": 2428,
+            "auc": 0.6667787695406063,
+            "brier": 0.08257684671666803,
+            "log_loss": 0.2963463128843866
+          },
+          {
+            "fold": 4,
+            "rows": 2318,
+            "auc": 0.6780861957748751,
+            "brier": 0.0797906371347484,
+            "log_loss": 0.2867197640870672
+          }
+        ]
+      },
+      "test": {
+        "auc": 0.6505173179865857,
+        "average_precision": 0.1373736439661195,
+        "brier": 0.07797377830860361,
+        "log_loss": 0.28444032323607976,
+        "ece": 0.0053849007229265335,
+        "contacted": 516,
+        "churners_reached": 97,
+        "precision_at_top": 0.187984496124031,
+        "recall_at_top": 0.2141280353200883,
+        "lift_at_top": 2.1363006314492528,
+        "net_value_inr_per_month": 63001.125
+      }
+    },
+    {
+      "id": "E1",
+      "name": "logistic regression, 5 core features",
+      "kind": "logistic",
+      "features": [
+        "tenure_months",
+        "is_new",
+        "meals_last_month",
+        "skip_rate_last_month",
+        "tickets_90d"
+      ],
+      "cv": {
+        "auc_mean": 0.7425810312952257,
+        "auc_sd": 0.013345557693371006,
+        "brier_mean": 0.08125709317685229,
+        "log_loss_mean": 0.2871311479428333,
+        "folds": [
+          {
+            "fold": 0,
+            "rows": 2273,
+            "auc": 0.758119114378392,
+            "brier": 0.09034454676399346,
+            "log_loss": 0.31003799352770656
+          },
+          {
+            "fold": 1,
+            "rows": 2553,
+            "auc": 0.725026347485697,
+            "brier": 0.07377164850863478,
+            "log_loss": 0.26831431405449097
+          },
+          {
+            "fold": 2,
+            "rows": 2290,
+            "auc": 0.7328841463414634,
+            "brier": 0.08683467547306867,
+            "log_loss": 0.3037039316020315
+          },
+          {
+            "fold": 3,
+            "rows": 2428,
+            "auc": 0.748741286771535,
+            "brier": 0.07925445670966187,
+            "log_loss": 0.2812710119802601
+          },
+          {
+            "fold": 4,
+            "rows": 2318,
+            "auc": 0.7481342614990414,
+            "brier": 0.07608013842890271,
+            "log_loss": 0.2723284885496774
+          }
+        ]
+      },
+      "test": {
+        "auc": 0.7414232885954952,
+        "average_precision": 0.23625911434716895,
+        "brier": 0.0746495234265413,
+        "log_loss": 0.26816358233799165,
+        "ece": 0.011730580250136135,
+        "contacted": 516,
+        "churners_reached": 145,
+        "precision_at_top": 0.2810077519379845,
+        "recall_at_top": 0.3200883002207506,
+        "lift_at_top": 3.1934390882488835,
+        "net_value_inr_per_month": 112633.125
+      }
+    },
+    {
+      "id": "E2",
+      "name": "logistic regression, all 15 features",
+      "kind": "logistic",
+      "features": [
+        "tenure_months",
+        "is_new",
+        "plan_standard",
+        "plan_premium",
+        "discount_share",
+        "price_change_pct",
+        "meals_last_month",
+        "skip_rate_last_month",
+        "meals_trend",
+        "late_rate_3m",
+        "avg_rating_3m",
+        "rating_missing",
+        "tickets_90d",
+        "open_tickets",
+        "failed_payments_3m"
+      ],
+      "cv": {
+        "auc_mean": 0.7579617893993571,
+        "auc_sd": 0.014616261439106052,
+        "brier_mean": 0.0786595944681632,
+        "log_loss_mean": 0.2779246926567477,
+        "folds": [
+          {
+            "fold": 0,
+            "rows": 2273,
+            "auc": 0.7734924169238865,
+            "brier": 0.08663893220318104,
+            "log_loss": 0.298376916195044
+          },
+          {
+            "fold": 1,
+            "rows": 2553,
+            "auc": 0.7364270828380799,
+            "brier": 0.0723926053987559,
+            "log_loss": 0.2620719714227713
+          },
+          {
+            "fold": 2,
+            "rows": 2290,
+            "auc": 0.7693963414634146,
+            "brier": 0.08293897642973881,
+            "log_loss": 0.28848731321685306
+          },
+          {
+            "fold": 3,
+            "rows": 2428,
+            "auc": 0.7566787568312688,
+            "brier": 0.07635191257136469,
+            "log_loss": 0.2728172520173091
+          },
+          {
+            "fold": 4,
+            "rows": 2318,
+            "auc": 0.7538143489401351,
+            "brier": 0.07497554573777554,
+            "log_loss": 0.267870010431761
+          }
+        ]
+      },
+      "test": {
+        "auc": 0.7430089781294741,
+        "average_precision": 0.23196024859699874,
+        "brier": 0.07534263360065004,
+        "log_loss": 0.2685770318345423,
+        "ece": 0.008025411018447911,
+        "contacted": 516,
+        "churners_reached": 137,
+        "precision_at_top": 0.2655038759689923,
+        "recall_at_top": 0.30242825607064017,
+        "lift_at_top": 3.017249345448945,
+        "net_value_inr_per_month": 109786.125
+      }
+    }
+  ],
+  "champion": {
+    "experiment": "E2",
+    "reason": "E2 beats E1 by 0.0154 mean CV AUC (>= 0.002)",
+    "features": [
+      "tenure_months",
+      "is_new",
+      "plan_standard",
+      "plan_premium",
+      "discount_share",
+      "price_change_pct",
+      "meals_last_month",
+      "skip_rate_last_month",
+      "meals_trend",
+      "late_rate_3m",
+      "avg_rating_3m",
+      "rating_missing",
+      "tickets_90d",
+      "open_tickets",
+      "failed_payments_3m"
+    ],
+    "intercept": 2.301817030939458,
+    "coefficients": {
+      "tenure_months": -0.031703576662827505,
+      "is_new": 0.6429589145302274,
+      "plan_standard": -0.07920156518893101,
+      "plan_premium": 0.0234733398721418,
+      "discount_share": 3.217253415426954,
+      "price_change_pct": 3.215891714151317,
+      "meals_last_month": 0.004191035687848376,
+      "skip_rate_last_month": 3.8336536321955257,
+      "meals_trend": -0.017167825087939993,
+      "late_rate_3m": -0.1928083205353069,
+      "avg_rating_3m": -1.342971782299839,
+      "rating_missing": -0.3345307461064876,
+      "tickets_90d": 0.2757528271622518,
+      "open_tickets": -0.13884832540276246,
+      "failed_payments_3m": 0.3590525265623662
+    },
+    "feature_means": {
+      "tenure_months": 4.057747428764121,
+      "is_new": 0.4155285786545271,
+      "plan_standard": 0.38635980441746753,
+      "plan_premium": 0.1603439554881133,
+      "discount_share": 0.030468767467473557,
+      "price_change_pct": 0.0012641149930895411,
+      "meals_last_month": 21.05311077389985,
+      "skip_rate_last_month": 0.11601370405332376,
+      "meals_trend": 1.9463834092058674,
+      "late_rate_3m": 0.07369061989818151,
+      "avg_rating_3m": 4.18095169164858,
+      "rating_missing": 0.25316135558927666,
+      "tickets_90d": 0.41755184623166414,
+      "open_tickets": 0.0573259146855505,
+      "failed_payments_3m": 0.07410217501264542
+    },
+    "importance": [
+      {
+        "feature": "skip_rate_last_month",
+        "coefficient": 3.8336536321955257,
+        "sd": 0.11512979497628362,
+        "standardised": 0.44136775668475586
+      },
+      {
+        "feature": "avg_rating_3m",
+        "coefficient": -1.342971782299839,
+        "sd": 0.3104136812330097,
+        "standardised": -0.41687681473574917
+      },
+      {
+        "feature": "is_new",
+        "coefficient": 0.6429589145302274,
+        "sd": 0.49281292492778184,
+        "standardised": 0.316858463278033
+      },
+      {
+        "feature": "discount_share",
+        "coefficient": 3.217253415426954,
+        "sd": 0.06941928590505803,
+        "standardised": 0.22333943467454814
+      },
+      {
+        "feature": "tickets_90d",
+        "coefficient": 0.2757528271622518,
+        "sd": 0.6854256127250756,
+        "standardised": 0.1890080505183583
+      },
+      {
+        "feature": "rating_missing",
+        "coefficient": -0.3345307461064876,
+        "sd": 0.4348225886789651,
+        "standardised": -0.14546152501472856
+      },
+      {
+        "feature": "price_change_pct",
+        "coefficient": 3.215891714151317,
+        "sd": 0.04485442854870535,
+        "standardised": 0.1442469851127738
+      },
+      {
+        "feature": "tenure_months",
+        "coefficient": -0.031703576662827505,
+        "sd": 3.4010997632634843,
+        "standardised": -0.10782702708254835
+      },
+      {
+        "feature": "meals_trend",
+        "coefficient": -0.017167825087939993,
+        "sd": 5.980853082576764,
+        "standardised": -0.10267823959834461
+      },
+      {
+        "feature": "failed_payments_3m",
+        "coefficient": 0.3590525265623662,
+        "sd": 0.26923776145609063,
+        "standardised": 0.096670498496805
+      },
+      {
+        "feature": "plan_standard",
+        "coefficient": -0.07920156518893101,
+        "sd": 0.4869146803578259,
+        "standardised": -0.03856440479780786
+      },
+      {
+        "feature": "open_tickets",
+        "coefficient": -0.13884832540276246,
+        "sd": 0.24482820771103692,
+        "standardised": -0.03399398665203717
+      },
+      {
+        "feature": "meals_last_month",
+        "coefficient": 0.004191035687848376,
+        "sd": 7.409924104394169,
+        "standardised": 0.03105525636576388
+      },
+      {
+        "feature": "late_rate_3m",
+        "coefficient": -0.1928083205353069,
+        "sd": 0.06106672358978811,
+        "standardised": -0.011774172415940852
+      },
+      {
+        "feature": "plan_premium",
+        "coefficient": 0.0234733398721418,
+        "sd": 0.3669247489970379,
+        "standardised": 0.008612949340707792
+      }
+    ],
+    "high_risk_threshold": 0.20459667835677167
+  },
+  "test": {
+    "auc": 0.7430089781294741,
+    "average_precision": 0.23196024859699874,
+    "brier": 0.07534263360065004,
+    "log_loss": 0.2685770318345423,
+    "ece": 0.008025411018447911,
+    "contacted": 516,
+    "churners_reached": 137,
+    "precision_at_top": 0.2655038759689923,
+    "recall_at_top": 0.30242825607064017,
+    "lift_at_top": 3.017249345448945,
+    "net_value_inr_per_month": 109786.125
+  },
+  "calibration": {
+    "bins": [
+      {
+        "bin": 0,
+        "lower": 0.0,
+        "upper": 0.1,
+        "n": 3688,
+        "mean_pred": 0.04866620349399003,
+        "observed": 0.049891540130151846
+      },
+      {
+        "bin": 1,
+        "lower": 0.1,
+        "upper": 0.2,
+        "n": 995,
+        "mean_pred": 0.13901428447744157,
+        "observed": 0.1457286432160804
+      },
+      {
+        "bin": 2,
+        "lower": 0.2,
+        "upper": 0.3,
+        "n": 262,
+        "mean_pred": 0.23960833216792177,
+        "observed": 0.20610687022900764
+      },
+      {
+        "bin": 3,
+        "lower": 0.3,
+        "upper": 0.4,
+        "n": 110,
+        "mean_pred": 0.34109694551095165,
+        "observed": 0.33636363636363636
+      },
+      {
+        "bin": 4,
+        "lower": 0.4,
+        "upper": 0.5,
+        "n": 40,
+        "mean_pred": 0.4481078982226158,
+        "observed": 0.3
+      },
+      {
+        "bin": 5,
+        "lower": 0.5,
+        "upper": 0.6,
+        "n": 20,
+        "mean_pred": 0.5404186593237548,
+        "observed": 0.3
+      },
+      {
+        "bin": 6,
+        "lower": 0.6,
+        "upper": 0.7,
+        "n": 8,
+        "mean_pred": 0.6476662390456197,
+        "observed": 0.625
+      },
+      {
+        "bin": 7,
+        "lower": 0.7,
+        "upper": 0.8,
+        "n": 12,
+        "mean_pred": 0.746965405292925,
+        "observed": 0.25
+      },
+      {
+        "bin": 8,
+        "lower": 0.8,
+        "upper": 0.9,
+        "n": 13,
+        "mean_pred": 0.841487426030728,
+        "observed": 0.5384615384615384
+      },
+      {
+        "bin": 9,
+        "lower": 0.9,
+        "upper": 1.0,
+        "n": 0,
+        "mean_pred": null,
+        "observed": null
+      }
+    ],
+    "ece": 0.008025411018447911,
+    "mean_pred": 0.09166961130628382,
+    "observed_rate": 0.087995337995338
+  },
+  "slices": {
+    "age_band": [
+      {
+        "value": "18-24",
+        "n": 1196,
+        "churners": 119,
+        "churn_rate": 0.09949832775919733,
+        "mean_pred": 0.09025143758742726,
+        "auc": 0.7368585317135211,
+        "contacted": 126,
+        "flagged_rate": 0.10535117056856187,
+        "recall_at_top": 0.31932773109243695
+      },
+      {
+        "value": "25-34",
+        "n": 1999,
+        "churners": 182,
+        "churn_rate": 0.09104552276138068,
+        "mean_pred": 0.09111261143356003,
+        "auc": 0.7488645091837167,
+        "contacted": 193,
+        "flagged_rate": 0.09654827413706854,
+        "recall_at_top": 0.2692307692307692
+      },
+      {
+        "value": "35-44",
+        "n": 980,
+        "churners": 76,
+        "churn_rate": 0.07755102040816327,
+        "mean_pred": 0.09030188231826837,
+        "auc": 0.7290550768514206,
+        "contacted": 101,
+        "flagged_rate": 0.10306122448979592,
+        "recall_at_top": 0.3157894736842105
+      },
+      {
+        "value": "45+",
+        "n": 822,
+        "churners": 65,
+        "churn_rate": 0.07907542579075426,
+        "mean_pred": 0.09806414615592973,
+        "auc": 0.7667513464078853,
+        "contacted": 87,
+        "flagged_rate": 0.10583941605839416,
+        "recall_at_top": 0.38461538461538464
+      },
+      {
+        "value": "unknown",
+        "n": 151,
+        "churners": 11,
+        "churn_rate": 0.0728476821192053,
+        "mean_pred": 0.08434275882398874,
+        "auc": null,
+        "contacted": 9,
+        "flagged_rate": 0.059602649006622516,
+        "recall_at_top": 0.09090909090909091
+      }
+    ],
+    "city_tier": [
+      {
+        "value": "tier1",
+        "n": 3809,
+        "churners": 352,
+        "churn_rate": 0.09241270674717773,
+        "mean_pred": 0.09559324081695654,
+        "auc": 0.7444319989744129,
+        "contacted": 406,
+        "flagged_rate": 0.10658965607771069,
+        "recall_at_top": 0.3153409090909091
+      },
+      {
+        "value": "tier2",
+        "n": 1339,
+        "churners": 101,
+        "churn_rate": 0.07542942494398805,
+        "mean_pred": 0.0805082186205837,
+        "auc": 0.7349285817111598,
+        "contacted": 110,
+        "flagged_rate": 0.08215085884988797,
+        "recall_at_top": 0.25742574257425743
+      }
+    ],
+    "plan": [
+      {
+        "value": "basic",
+        "n": 2287,
+        "churners": 207,
+        "churn_rate": 0.0905115872321819,
+        "mean_pred": 0.09808170780854926,
+        "auc": 0.766437894834634,
+        "contacted": 260,
+        "flagged_rate": 0.11368605159597726,
+        "recall_at_top": 0.3188405797101449
+      },
+      {
+        "value": "premium",
+        "n": 868,
+        "churners": 74,
+        "churn_rate": 0.08525345622119816,
+        "mean_pred": 0.09459007375682378,
+        "auc": 0.7733252774184765,
+        "contacted": 89,
+        "flagged_rate": 0.10253456221198157,
+        "recall_at_top": 0.35135135135135137
+      },
+      {
+        "value": "standard",
+        "n": 1993,
+        "churners": 172,
+        "churn_rate": 0.0863020572002007,
+        "mean_pred": 0.08303969354022774,
+        "auc": 0.7035570156954395,
+        "contacted": 167,
+        "flagged_rate": 0.08379327646763673,
+        "recall_at_top": 0.2616279069767442
+      }
+    ],
+    "channel": [
+      {
+        "value": "organic",
+        "n": 1720,
+        "churners": 147,
+        "churn_rate": 0.08546511627906976,
+        "mean_pred": 0.08447178947049098,
+        "auc": 0.7446860498808551,
+        "contacted": 115,
+        "flagged_rate": 0.06686046511627906,
+        "recall_at_top": 0.21768707482993196
+      },
+      {
+        "value": "paid_social",
+        "n": 1310,
+        "churners": 155,
+        "churn_rate": 0.1183206106870229,
+        "mean_pred": 0.11900820554070948,
+        "auc": 0.7019857561793046,
+        "contacted": 237,
+        "flagged_rate": 0.18091603053435115,
+        "recall_at_top": 0.3870967741935484
+      },
+      {
+        "value": "partner",
+        "n": 663,
+        "churners": 70,
+        "churn_rate": 0.10558069381598793,
+        "mean_pred": 0.10028584310770727,
+        "auc": 0.7774632618646109,
+        "contacted": 87,
+        "flagged_rate": 0.13122171945701358,
+        "recall_at_top": 0.38571428571428573
+      },
+      {
+        "value": "referral",
+        "n": 1128,
+        "churners": 66,
+        "churn_rate": 0.05851063829787234,
+        "mean_pred": 0.07923590117841556,
+        "auc": 0.733949666153056,
+        "contacted": 74,
+        "flagged_rate": 0.06560283687943262,
+        "recall_at_top": 0.25757575757575757
+      },
+      {
+        "value": "unknown",
+        "n": 327,
+        "churners": 15,
+        "churn_rate": 0.045871559633027525,
+        "mean_pred": 0.04542911727068023,
+        "auc": null,
+        "contacted": 3,
+        "flagged_rate": 0.009174311926605505,
+        "recall_at_top": 0.06666666666666667
+      }
+    ]
+  },
+  "fairness": {
+    "dimension": "age_band",
+    "groups": [
+      "18-24",
+      "25-34",
+      "35-44",
+      "45+"
+    ],
+    "recall_gap": 0.11538461538461542,
+    "flagged_rate_ratio": 0.9122147280536821,
+    "max_recall_gap": 0.15,
+    "passed": true
+  },
+  "gate": {
+    "checks": [
+      {
+        "id": "test_auc",
+        "value": 0.7430089781294741,
+        "threshold": 0.72,
+        "passed": true
+      },
+      {
+        "id": "auc_uplift_over_rule",
+        "value": 0.09249166014288834,
+        "threshold": 0.03,
+        "passed": true
+      },
+      {
+        "id": "ece",
+        "value": 0.008025411018447911,
+        "threshold": 0.03,
+        "passed": true
+      },
+      {
+        "id": "brier_below_prior",
+        "value": 0.07534263360065004,
+        "threshold": 0.08033690539698553,
+        "passed": true
+      },
+      {
+        "id": "recall_gap",
+        "value": 0.11538461538461542,
+        "threshold": 0.15,
+        "passed": true
+      },
+      {
+        "id": "leakage_scan",
+        "value": 0.7033188642505671,
+        "threshold": 0.9,
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "monitoring": {
+    "deployed_model": {
+      "path": "models/churncast-1.0.0.json",
+      "model_version": "1.0.0",
+      "trained_by_track": "python"
+    },
+    "reference": {
+      "split": "train",
+      "rows": 11862
+    },
+    "drift": [
+      {
+        "snapshot": "2026-05",
+        "split": "recent",
+        "rows": 2791,
+        "score_psi": 0.012531498066493802,
+        "score_status": "stable",
+        "feature_psi": {
+          "tenure_months": 0.17542334678264473,
+          "is_new": 0.024790743946315745,
+          "plan_standard": 0.00015004306733025185,
+          "plan_premium": 6.804903859847492e-05,
+          "discount_share": 0.0021688625456798747,
+          "price_change_pct": 0.0003155964448659916,
+          "meals_last_month": 0.00445846212956942,
+          "skip_rate_last_month": 0.0035803281060249044,
+          "meals_trend": 0.012521377498082418,
+          "late_rate_3m": 0.006750522204404514,
+          "avg_rating_3m": 0.00770129090618305,
+          "rating_missing": 2.1145867104064035e-05,
+          "tickets_90d": 0.0014222725026690425,
+          "open_tickets": 0.0039135224905833665,
+          "failed_payments_3m": 2.2437954349752743e-05
+        },
+        "features_watch": [
+          "tenure_months"
+        ],
+        "features_drift": []
+      },
+      {
+        "snapshot": "2026-06",
+        "split": "holdout",
+        "rows": 2873,
+        "score_psi": 0.009913465738421723,
+        "score_status": "stable",
+        "feature_psi": {
+          "tenure_months": 0.20638486653472737,
+          "is_new": 0.018715170517576686,
+          "plan_standard": 8.602000513667575e-05,
+          "plan_premium": 1.2147346433783533e-05,
+          "discount_share": 0.010830410465481196,
+          "price_change_pct": 1.2175213912639693,
+          "meals_last_month": 0.0033949476451553273,
+          "skip_rate_last_month": 0.004959586435771498,
+          "meals_trend": 0.014633091583586342,
+          "late_rate_3m": 0.0017146403607238197,
+          "avg_rating_3m": 0.003769542664726566,
+          "rating_missing": 5.6048497019506825e-05,
+          "tickets_90d": 0.0006870729503682509,
+          "open_tickets": 0.004316896006028117,
+          "failed_payments_3m": 0.0013342701336823972
+        },
+        "features_watch": [
+          "tenure_months"
+        ],
+        "features_drift": [
+          "price_change_pct"
+        ]
+      },
+      {
+        "snapshot": "2026-07",
+        "split": "score",
+        "rows": 2873,
+        "score_psi": 0.02749455265911225,
+        "score_status": "stable",
+        "feature_psi": {
+          "tenure_months": 0.2520476085577286,
+          "is_new": 0.014940373503119584,
+          "plan_standard": 0.00016628986376674923,
+          "plan_premium": 9.904728615234987e-08,
+          "discount_share": 0.016529435310407063,
+          "price_change_pct": 0.0008509777101529516,
+          "meals_last_month": 0.004965390173292844,
+          "skip_rate_last_month": 0.004434155711057506,
+          "meals_trend": 0.010445959362360735,
+          "late_rate_3m": 0.0045710936749783744,
+          "avg_rating_3m": 0.0032028497924374033,
+          "rating_missing": 9.801027438659142e-05,
+          "tickets_90d": 0.002345401046279354,
+          "open_tickets": 0.003462866232843117,
+          "failed_payments_3m": 0.002176683751947593
+        },
+        "features_watch": [],
+        "features_drift": [
+          "tenure_months"
+        ]
+      }
+    ],
+    "performance": [
+      {
+        "snapshot": "2026-05",
+        "split": "recent",
+        "rows": 2791,
+        "auc": 0.7710768329070758,
+        "brier": 0.10485106297456631,
+        "ece": 0.04929454003027706,
+        "mean_pred": 0.09079861654442735,
+        "observed_rate": 0.14009315657470442,
+        "alerts": [
+          "ECE 0.049 > 0.03",
+          "mean predicted 0.091 vs observed 0.140"
+        ]
+      },
+      {
+        "snapshot": "2026-06",
+        "split": "holdout",
+        "rows": 2873,
+        "auc": 0.7704495232514131,
+        "brier": 0.11880678895342496,
+        "ece": 0.05889213356828988,
+        "mean_pred": 0.10783254446860537,
+        "observed_rate": 0.16672467803689522,
+        "alerts": [
+          "ECE 0.059 > 0.03",
+          "mean predicted 0.108 vs observed 0.167"
+        ]
+      }
+    ],
+    "alerts": [
+      "2026-05: ECE 0.049 > 0.03",
+      "2026-05: mean predicted 0.091 vs observed 0.140",
+      "2026-06: price_change_pct drifted (PSI 1.218)",
+      "2026-06: ECE 0.059 > 0.03",
+      "2026-06: mean predicted 0.108 vs observed 0.167",
+      "2026-07: tenure_months drifted (PSI 0.252)"
+    ],
+    "status": "retrain"
+  },
+  "retraining": {
+    "challenger": {
+      "features": [
+        "tenure_months",
+        "is_new",
+        "plan_standard",
+        "plan_premium",
+        "discount_share",
+        "price_change_pct",
+        "meals_last_month",
+        "skip_rate_last_month",
+        "meals_trend",
+        "late_rate_3m",
+        "avg_rating_3m",
+        "rating_missing",
+        "tickets_90d",
+        "open_tickets",
+        "failed_payments_3m"
+      ],
+      "refit_snapshots": [
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04"
+      ],
+      "refit_rows": 17010,
+      "calibration_snapshot": "2026-05",
+      "calibration_offset": 0.5639291105424934,
+      "intercept": 1.869039107261008,
+      "coefficients": {
+        "tenure_months": -0.02080099390276665,
+        "is_new": 0.6956624051752173,
+        "plan_standard": -0.024858024029400766,
+        "plan_premium": 0.028461302312966955,
+        "discount_share": 2.8390888922587254,
+        "price_change_pct": 3.069728698519728,
+        "meals_last_month": 0.002047248500109858,
+        "skip_rate_last_month": 3.9710473805800457,
+        "meals_trend": -0.010355762212250362,
+        "late_rate_3m": 0.1526589031308425,
+        "avg_rating_3m": -1.1232390658327704,
+        "rating_missing": -0.27795798744463607,
+        "tickets_90d": 0.257517987852533,
+        "open_tickets": -0.11403553890434505,
+        "failed_payments_3m": 0.2978854892069755
+      }
+    },
+    "holdout": {
+      "snapshot": "2026-06",
+      "rows": 2873,
+      "churn_rate": 0.16672467803689522
+    },
+    "champion_holdout": {
+      "auc": 0.7704495232514131,
+      "average_precision": 0.4844560096976237,
+      "brier": 0.11880678895342496,
+      "log_loss": 0.39245742020106156,
+      "ece": 0.05889213356828988,
+      "contacted": 288,
+      "churners_reached": 164,
+      "precision_at_top": 0.5694444444444444,
+      "recall_at_top": 0.34237995824634654,
+      "lift_at_top": 3.4154778473672,
+      "net_value_inr_per_month": 338652.0,
+      "mean_pred": 0.10783254446860537,
+      "observed_rate": 0.16672467803689522,
+      "recall_gap": 0.10899315738025417
+    },
+    "challenger_holdout": {
+      "auc": 0.7732749584469176,
+      "average_precision": 0.4919772880836555,
+      "brier": 0.11290895892091794,
+      "log_loss": 0.3726062681057613,
+      "ece": 0.013176847130634236,
+      "contacted": 288,
+      "churners_reached": 167,
+      "precision_at_top": 0.5798611111111112,
+      "recall_at_top": 0.348643006263048,
+      "lift_at_top": 3.477956100672698,
+      "net_value_inr_per_month": 344724.75,
+      "mean_pred": 0.16172833628624764,
+      "observed_rate": 0.16672467803689522,
+      "recall_gap": 0.11065493646138808
+    },
+    "gate": {
+      "checks": [
+        {
+          "id": "auc_not_worse",
+          "value": 0.7732749584469176,
+          "threshold": 0.7654495232514131,
+          "passed": true
+        },
+        {
+          "id": "brier_improves",
+          "value": 0.11290895892091794,
+          "threshold": 0.11880678895342496,
+          "passed": true
+        },
+        {
+          "id": "ece",
+          "value": 0.013176847130634236,
+          "threshold": 0.03,
+          "passed": true
+        },
+        {
+          "id": "recall_gap",
+          "value": 0.11065493646138808,
+          "threshold": 0.15,
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    "decision": "promote"
+  }
+}

@@ -42,6 +42,68 @@ def display_names() -> dict:
     return names
 
 
+def monitoring_lines(m: dict, a: dict) -> list[str]:
+    """v1.1: how the deployed model did after release, and why this artefact replaced it."""
+    mon, rt = m["monitoring"], m["retraining"]
+    c, lin = rt["challenger"], a.get("lineage", {})
+    out = [
+        "## Monitoring and retraining (v1.1)",
+        "",
+        f"Deployed model {mon['deployed_model']['model_version']} on the months after release "
+        f"(PSI against the {mon['reference']['rows']:,} training rows):",
+        "",
+        "| Month | Role | Rows | AUC | Brier | ECE | Mean predicted | Observed | Score PSI | Drifted features |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    perf = {p["snapshot"]: p for p in mon["performance"]}
+    for d in mon["drift"]:
+        p = perf.get(d["snapshot"])
+        cells = (
+            [num(p["auc"]), num(p["brier"], 4), num(p["ece"], 4), pct(p["mean_pred"]), pct(p["observed_rate"])]
+            if p
+            else ["n/a (no label yet)", "", "", "", ""]
+        )
+        drifted = ", ".join(f"`{f}` ({num(d['feature_psi'][f])})" for f in d["features_drift"]) or "none"
+        out.append(
+            f"| {d['snapshot']} | {d['split']} | {d['rows']:,} | "
+            + " | ".join(cells)
+            + f" | {num(d['score_psi'])} | {drifted} |"
+        )
+    out += ["", f"Monitoring status: **{mon['status']}**.", ""]
+    out += [
+        f"**This artefact ({a['model_version']})** is the challenger: the {len(c['features'])} features of "
+        f"{a['experiment']}, refitted on {c['refit_snapshots'][0]} to {c['refit_snapshots'][-1]} "
+        f"({c['refit_rows']:,} customer-months), then its intercept shifted by {num(c['calibration_offset'], 4)} "
+        f"so its mean prediction matches {c['calibration_snapshot']}. Parent model: "
+        f"{lin.get('parent_model_version')}. Champion and challenger were compared on {rt['holdout']['snapshot']} "
+        f"({rt['holdout']['rows']:,} customers, churn {pct(rt['holdout']['churn_rate'])}), which neither had seen:",
+        "",
+        "| Holdout metric | Champion | Challenger |",
+        "|---|---|---|",
+    ]
+    ch, cc = rt["champion_holdout"], rt["challenger_holdout"]
+    for key, label, digits in (
+        ("auc", "AUC", 3),
+        ("brier", "Brier", 4),
+        ("ece", "ECE", 4),
+        ("precision_at_top", "Precision, top 10 %", 3),
+        ("recall_gap", "Recall gap", 3),
+    ):
+        out.append(f"| {label} | {num(ch[key], digits)} | {num(cc[key], digits)} |")
+    out += ["", "| Retraining check | Value | Threshold | Result |", "|---|---|---|---|"]
+    for g in rt["gate"]["checks"]:
+        out.append(
+            f"| {g['id']} | {num(g['value'], 4)} | {num(g['threshold'], 4)} | {'pass' if g['passed'] else 'FAIL'} |"
+        )
+    out += [
+        "",
+        f"**Decision: {rt['decision']}.** The sections above describe the experiment protocol re-run on this "
+        "export (training and test months as in v1.0).",
+        "",
+    ]
+    return out
+
+
 def render(m: dict, a: dict) -> str:
     names = display_names()
     exp = {e["id"]: e for e in m["experiments"]}
@@ -160,10 +222,10 @@ def render(m: dict, a: dict) -> str:
         lines.append(
             f"| {c['id']} | {num(c['value'], 4)} | {num(c['threshold'], 4)} | {'pass' if c['passed'] else 'FAIL'} |"
         )
+    lines += ["", f"**Gate: {'PASSED' if m['gate']['passed'] else 'FAILED'}.**", ""]
+    if "retraining" in m:
+        lines += monitoring_lines(m, a)
     lines += [
-        "",
-        f"**Gate: {'PASSED' if m['gate']['passed'] else 'FAILED'}.**",
-        "",
         "## Limitations and ethical considerations",
         "- Synthetic data: the case study's TiffinBox is fictional; the patterns are realistic, the people are not.",
         "- Unseen drivers: acquisition channel and age band affect churn but are not features (channel has "

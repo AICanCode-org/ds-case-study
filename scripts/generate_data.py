@@ -28,7 +28,7 @@ from pathlib import Path
 SEED = 20260603
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
-EXPORTS = ["2026-05"]
+EXPORTS = ["2026-05", "2026-07"]
 FIRST = (2025, 1)
 N_MONTHS = 19  # 2025-01 .. 2026-07
 DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]

@@ -388,11 +388,130 @@
     },
     "monitoring": {
       "type": "object",
-      "description": "1.1: drift (PSI) and realised performance of the deployed model"
+      "description": "1.1: drift (PSI) and realised performance of the deployed model on the post-deployment snapshots",
+      "required": [
+        "deployed_model",
+        "reference",
+        "drift",
+        "performance",
+        "alerts",
+        "status"
+      ],
+      "properties": {
+        "drift": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "snapshot",
+              "split",
+              "rows",
+              "score_psi",
+              "score_status",
+              "feature_psi",
+              "features_watch",
+              "features_drift"
+            ],
+            "properties": {
+              "split": {
+                "enum": [
+                  "recent",
+                  "holdout",
+                  "score"
+                ]
+              },
+              "score_status": {
+                "enum": [
+                  "stable",
+                  "watch",
+                  "drift"
+                ]
+              },
+              "feature_psi": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "performance": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "snapshot",
+              "split",
+              "rows",
+              "auc",
+              "brier",
+              "ece",
+              "mean_pred",
+              "observed_rate",
+              "alerts"
+            ]
+          }
+        },
+        "alerts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "watch",
+            "retrain"
+          ]
+        }
+      }
     },
     "retraining": {
       "type": "object",
-      "description": "1.1: champion/challenger comparison and the promotion decision"
+      "description": "1.1: champion/challenger comparison on the holdout snapshot and the promotion decision",
+      "required": [
+        "challenger",
+        "holdout",
+        "champion_holdout",
+        "challenger_holdout",
+        "gate",
+        "decision"
+      ],
+      "properties": {
+        "challenger": {
+          "type": "object",
+          "required": [
+            "features",
+            "refit_snapshots",
+            "refit_rows",
+            "calibration_snapshot",
+            "calibration_offset",
+            "intercept",
+            "coefficients"
+          ]
+        },
+        "gate": {
+          "type": "object",
+          "required": [
+            "checks",
+            "passed"
+          ],
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "decision": {
+          "enum": [
+            "promote",
+            "keep"
+          ]
+        }
+      }
     }
   }
 }

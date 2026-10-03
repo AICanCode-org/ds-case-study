@@ -59,5 +59,16 @@ if [ "$EXPECT_FALLBACK" = true ]; then
     "d['explanation']['source'] == 'template' and d['explanation']['fallback'] is True and d['explanation']['reason'].startswith('provider unreachable')"
 fi
 check "unknown path is 404" status_is 404 GET /v1/nope
+# 1.1: request ids and metrics
+request_id_echoed() {
+  curl -s -D "$TMP/headers" -o "$TMP/body" -H 'X-Request-ID: smoke-req-1' "$BASE/health" >/dev/null
+  tr -d '\r' <"$TMP/headers" | grep -qi '^x-request-id: smoke-req-1$'
+}
+check "X-Request-ID is echoed" request_id_echoed
+metrics_text() {
+  curl -sf "$BASE/metrics" >"$TMP/metrics" && grep -q '^churncast_requests_total{' "$TMP/metrics" \
+    && grep -q '^churncast_model_info{' "$TMP/metrics"
+}
+check "Prometheus metrics" metrics_text
 echo "smoke: $pass passed, $fail failed ($BASE)"
 [ "$fail" -eq 0 ]

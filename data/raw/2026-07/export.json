@@ -1,0 +1,14 @@
+{
+  "export": "2026-07",
+  "company": "TiffinBox (synthetic)",
+  "period_start": "2025-01-01",
+  "period_end": "2026-07-31",
+  "generator": "scripts/generate_data.py",
+  "seed": 20260603,
+  "files": {
+    "customers.csv": "13a73cd100bb623068758e1c4c6deb33b7973123076c24e8b050b101bac6556f",
+    "invoices.csv": "cce4867e328d39a2da1deefe70e1aa4a7d13094ead454c2c150ce5969c37e14a",
+    "tickets.csv": "4046feb0ffe9d0a78096a942f8f4da846c58b88d9123855f6fb0247007fa4c49",
+    "usage.csv": "29b9f89578379fc03d1d910095fe89caf14fea254f25e77505c4c37e56a1bc0d"
+  }
+}

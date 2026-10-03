@@ -125,11 +125,49 @@
     },
     "monitoring_reference": {
       "type": "object",
-      "description": "1.1: decile edges and shares of every feature and of the score on the training rows (for PSI)"
+      "description": "1.1: decile edges and shares of every feature and of the score on the training rows (the PSI reference)",
+      "required": [
+        "bins",
+        "rows",
+        "features",
+        "score"
+      ],
+      "properties": {
+        "bins": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/profile"
+          }
+        },
+        "score": {
+          "$ref": "#/$defs/profile"
+        }
+      }
     },
     "lineage": {
       "type": "object",
-      "description": "1.1: where the model came from (parent model, refit window, calibration month, gate decision)"
+      "description": "1.1: where the model came from (parent model, refit window, calibration month, gate decision)",
+      "required": [
+        "parent_model_version"
+      ],
+      "properties": {
+        "parent_model_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decision": {
+          "enum": [
+            "promote",
+            "keep"
+          ]
+        }
+      }
     },
     "generator": {
       "type": "object",
@@ -147,6 +185,31 @@
         },
         "version": {
           "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "required": [
+        "edges",
+        "shares"
+      ],
+      "properties": {
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "shares": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
         }
       }
     }

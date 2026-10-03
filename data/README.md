@@ -12,6 +12,7 @@ python3 scripts/generate_data.py --check   # every committed file is byte-identi
 | Export | Period | Notes |
 |---|---|---|
 | `2026-05` | 2025-01-01 to 2026-05-31 | the export of the brief (v1.0): train 2025-09 … 2026-02, test 2026-03 … 04 |
+| `2026-07` | 2025-01-01 to 2026-07-31 | v1.1: same training and test months; recent 2026-05, holdout 2026-06, score 2026-07 (unlabelled). New channel `influencer` (from June 2026); a price increase in June; churn ~14-17 % |
 
 ## `customers.csv` (one row per customer)
 | Column | Type (after cleaning) | Notes |
@@ -19,7 +20,7 @@ python3 scripts/generate_data.py --check   # every committed file is byte-identi
 | `customer_id` | text `C00001` | a few exact duplicate rows; stray spaces |
 | `signup_date` | date | `2025-03-05` **or** `05/03/2025` (day first); a few impossible dates |
 | `city` | text | five cities, mixed case, stray spaces, the old name `Bangalore` |
-| `acquisition_channel` | `organic` / `referral` / `paid_social` / `partner` / `unknown` | ~9 % blank |
+| `acquisition_channel` | `organic` / `referral` / `paid_social` / `partner` / `influencer` / `unknown` | ~9 % blank; `influencer` only from June 2026 (contract 1.1.0) |
 | `age_band` | `18-24` / `25-34` / `35-44` / `45+` / `unknown` | protected: fairness check only, never a feature |
 | `cancellation_reason` | text or blank | **leaky**: filled in when a customer cancels, i.e. after the outcome. Never a feature |
 

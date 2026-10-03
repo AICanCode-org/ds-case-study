@@ -1,0 +1,114 @@
+# ChurnCast data contract: what a TiffinBox export must look like, how it is cleaned, which features the model may
+# use, how the model is evaluated and which numbers must hold before it can ship. Every track reads this file;
+# contract/feature-spec.md explains every rule in words. Change it with a PR and a version bump (Phase 7).
+contract_version: "1.0.0"
+dataset: tiffinbox-subscriptions
+
+files:
+  customers: {file: customers.csv, key: customer_id,
+              columns: [customer_id, signup_date, city, acquisition_channel, age_band, cancellation_reason]}
+  invoices: {file: invoices.csv, key: invoice_id,
+             columns: [invoice_id, customer_id, billing_month, kind, plan, list_price, discount, status]}
+  usage: {file: usage.csv, key: [customer_id, month],
+          columns: [customer_id, month, meals_ordered, meals_skipped, late_deliveries, ratings_count, ratings_sum]}
+  tickets: {file: tickets.csv, key: ticket_id,
+            columns: [ticket_id, customer_id, created_at, category, resolved_at]}
+
+cleaning:
+  timestamp_formats: ["%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M"]
+  date_formats: ["%Y-%m-%d", "%d/%m/%Y"]
+  city_aliases: {bangalore: bengaluru}
+  city_tier: {pune: tier1, bengaluru: tier1, hyderabad: tier1, nagpur: tier2, indore: tier2}
+  missing_label: unknown          # blank acquisition_channel / age_band after cleaning
+  rating_default: 4.0             # avg_rating_3m when the customer rated nothing in the window
+
+# Never a feature: known only after the outcome, or not allowed to drive a decision about a customer.
+leaky_columns: [customers.cancellation_reason]
+protected_columns: [customers.age_band]   # used for the fairness check only, never as a feature
+
+snapshots:
+  train: ["2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02"]
+  test: ["2026-03", "2026-04"]
+  folds: 5                        # fold = customer number mod 5 (C00042 -> 2): a customer never sits in two folds
+
+features:
+  - {name: tenure_months, type: int, min: 0, max: 240, core: true, display: "months as a customer", unit: months}
+  - {name: is_new, type: binary, min: 0, max: 1, core: true, display: "in the first three months", unit: flag}
+  - {name: plan_standard, type: binary, min: 0, max: 1, core: false, display: "on the Standard plan", unit: flag}
+  - {name: plan_premium, type: binary, min: 0, max: 1, core: false, display: "on the Premium plan", unit: flag}
+  - {name: discount_share, type: float, min: 0, max: 1, core: false, display: "share of this month's price discounted", unit: share}
+  - {name: price_change_pct, type: float, min: -1, max: 5, core: false, display: "price change since last month", unit: share}
+  - {name: meals_last_month, type: int, min: 0, max: 62, core: true, display: "meals ordered last month", unit: meals}
+  - {name: skip_rate_last_month, type: float, min: 0, max: 1, core: true, display: "share of meals skipped last month", unit: share}
+  - {name: meals_trend, type: float, min: -62, max: 62, core: false, display: "change in meals vs the two months before", unit: meals}
+  - {name: late_rate_3m, type: float, min: 0, max: 1, core: false, display: "share of deliveries late (3 months)", unit: share}
+  - {name: avg_rating_3m, type: float, min: 1, max: 5, core: false, display: "average meal rating (3 months)", unit: stars}
+  - {name: rating_missing, type: binary, min: 0, max: 1, core: false, display: "gave no ratings (3 months)", unit: flag}
+  - {name: tickets_90d, type: int, min: 0, max: 100, core: true, display: "support tickets in the last 90 days", unit: tickets}
+  - {name: open_tickets, type: int, min: 0, max: 100, core: false, display: "support tickets still open", unit: tickets}
+  - {name: failed_payments_3m, type: int, min: 0, max: 10, core: false, display: "failed payments (3 months)", unit: payments}
+
+experiments:                       # compared with 5-fold grouped CV on the training snapshots (feature-spec §5)
+  - {id: B0, kind: prior, name: "prior: everyone gets the training churn rate"}
+  - {id: B1, kind: rule, name: "rule of thumb: the retention team's risk flags"}
+  - {id: E1, kind: logistic, features: core, name: "logistic regression, 5 core features"}
+  - {id: E2, kind: logistic, features: all, name: "logistic regression, all 15 features"}
+champion:                          # the logistic experiment with the best mean CV AUC; the simpler one unless the
+  min_cv_auc_gain_for_complexity: 0.002   # bigger one wins by at least this much
+
+rule_baseline:                     # B1: what the retention team does today, one point per flag
+  - {feature: skip_rate_last_month, op: ">=", value: 0.3}
+  - {feature: meals_trend, op: "<=", value: -5}
+  - {feature: tickets_90d, op: ">=", value: 2}
+  - {feature: failed_payments_3m, op: ">=", value: 1}
+  - {feature: is_new, op: ">=", value: 1}
+
+evaluation:
+  top_percent: 10                  # the team can call 10 % of active customers per month (k = ceil(n * 10 / 100))
+  calibration_bins: 10
+  offer_cost_inr: 200              # cost of one retention call + offer
+  save_rate: 0.25                  # share of contacted would-be churners who stay (assumption, to be tested)
+  value_months: 3                  # months of revenue a saved customer is worth
+  slices: [age_band, city_tier, plan, channel]
+  min_slice_rows_for_auc: 100
+  min_slice_churners_for_auc: 20
+  fairness: {dimension: age_band, min_churners: 30, max_recall_gap: 0.15}
+  leakage_max_single_feature_auc: 0.90
+
+gate:                              # the model ships only if every check passes (Phase 4 tests, Phase 5 CI)
+  min_test_auc: 0.72
+  min_auc_uplift_over_rule: 0.03
+  max_ece: 0.03
+  brier_below_prior: true
+  max_recall_gap: 0.15
+  leakage_scan: true
+
+checks:
+  - {id: customers.customer_id.unique, table: customers, type: unique, column: customer_id, severity: error}
+  - {id: customers.signup_date.not_null, table: customers, type: not_null, column: signup_date, severity: error}
+  - {id: customers.city.accepted, table: customers, type: accepted_values, column: city, severity: error,
+     values: [pune, bengaluru, hyderabad, nagpur, indore]}
+  - {id: customers.channel.accepted, table: customers, type: accepted_values, column: acquisition_channel, severity: error,
+     values: [organic, referral, paid_social, partner, unknown]}
+  - {id: customers.age_band.accepted, table: customers, type: accepted_values, column: age_band, severity: error,
+     values: ["18-24", "25-34", "35-44", "45+", unknown]}
+  - {id: customers.channel.missing_share, table: customers, type: max_ratio, column: acquisition_channel, value: unknown,
+     max: 0.15, severity: warn}
+  - {id: invoices.invoice_id.unique, table: invoices, type: unique, column: invoice_id, severity: error}
+  - {id: invoices.kind.accepted, table: invoices, type: accepted_values, column: kind, severity: error, values: [charge, refund]}
+  - {id: invoices.status.accepted, table: invoices, type: accepted_values, column: status, severity: error, values: [paid, failed]}
+  - {id: invoices.plan.accepted, table: invoices, type: accepted_values, column: plan, severity: error,
+     values: [basic, standard, premium]}
+  - {id: invoices.list_price.range, table: invoices, type: range, column: list_price, min: -10000, max: 10000, severity: error}
+  - {id: invoices.customer.exists, table: invoices, type: relationship, column: customer_id, to: customers, severity: error}
+  - {id: usage.key.unique, table: usage, type: unique, column: [customer_id, month], severity: error}
+  - {id: usage.meals_ordered.range, table: usage, type: range, column: meals_ordered, min: 0, max: 62, severity: error}
+  - {id: usage.customer.exists, table: usage, type: relationship, column: customer_id, to: customers, severity: error}
+  - {id: tickets.ticket_id.unique, table: tickets, type: unique, column: ticket_id, severity: error}
+  - {id: tickets.category.accepted, table: tickets, type: accepted_values, column: category, severity: error,
+     values: [delivery, food_quality, billing, app, other, cancellation]}
+  - {id: tickets.customer.exists, table: tickets, type: relationship, column: customer_id, to: customers, severity: error}
+  - {id: raw.usage.negative_counts, table: raw_usage, type: max_ratio, column: meals_skipped, value: "-1", max: 0.01,
+     severity: warn}
+  - {id: snapshots.rows.min, table: snapshots, type: range, column: rows, min: 1000, max: 100000, severity: error}
+  - {id: snapshots.churn_rate.range, table: snapshots, type: range, column: churn_rate, min: 0.02, max: 0.25, severity: error}

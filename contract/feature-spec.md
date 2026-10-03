@@ -1,4 +1,4 @@
-# ChurnCast feature specification (data contract 1.0.0)
+# ChurnCast feature specification (data contract 1.1.0)
 
 The rules every track implements, in words. `data-contract.yaml` holds the numbers (formats, thresholds, lists);
 this page says what to do with them and in which order. When the two disagree, it is a bug: open an issue.
@@ -21,6 +21,18 @@ team multiplies it by the price to size the retention budget.
 | train | 2025-09 … 2026-02 (6 snapshots) | fitting, grouped 5-fold cross-validation, the leakage scan |
 | test | 2026-03, 2026-04 | **once**, at the end: out-of-time evaluation and the gate |
 | (label month of 2026-04) | 2026-05 | only the label of the last test snapshot |
+
+**After deployment (contract 1.1.0, export 2026-07).** The v1.0 model went live on the 2026-05 export. Later exports
+add *post-deployment* snapshots, which the v1.0 model has never seen:
+
+| Name | Month (export 2026-07) | Used for |
+|---|---|---|
+| recent | 2026-05 | realised performance of the deployed model; recalibrates the challenger (§9) |
+| holdout | 2026-06 | realised performance; champion vs challenger is decided here |
+| score | 2026-07 | unlabelled (its label month is not in the export): drift, and the next call list |
+
+A `recent` or `holdout` snapshot is used only if the export also covers its label month, so the 2026-05 export
+reproduces v1.0 exactly with contract 1.1.0.
 
 The test months are later than every training month (*out of time*): a churn model is always used on the future.
 A snapshot is built only if its month is in the export; its label needs month M + 1 as well.
@@ -71,7 +83,7 @@ is reported and the run continues. The two `snapshots.*` checks run on the snaps
   `status = paid`; if several, the one with the lowest `invoice_id`). Refunds and failed payments are not renewals.
 - **Label:** `churned = 1` if the customer has **no paid charge for month M + 1**, else 0. It is null when month
   M + 1 is not in the export.
-- `split` from the contract (`train`, `test`); `fold` = customer number mod `folds` (`C00042` → 2): all the
+- `split` from the contract (`train`, `test`, and from 1.1.0 `recent`, `holdout`, `score`); `fold` = customer number mod `folds` (`C00042` → 2): all the
   snapshots of a customer sit in the same fold, so a fold never validates on a customer it trained on.
 - One output row per (customer, snapshot), sorted by snapshot then `customer_id` (`out/features.csv`, with the
   slice columns `city`, `city_tier`, `age_band`, `channel`, `plan`, `price_inr`).
@@ -164,3 +176,30 @@ Every track writes the same four files. `scripts/parity.py` compares them with t
 - `metrics.json`, `model.json`: integers, strings, booleans, nulls and list lengths equal; floats within 1e−6
   absolute + 1e−6 relative (two optimisers converge to the same maximum, not to the last bit). `generator` is ignored.
 The golden files in `contract/golden/` are regenerated only when all three tracks agree.
+
+## §9 Monitoring and retraining (contract 1.1.0)
+**Monitoring** asks whether the *deployed* model (`monitoring.deployed_model`, the v1.0 artefact) is still fit for
+use, using only its own coefficients:
+- **Drift (PSI).** Reference = the training rows. Bins = the decile edges (type-7 quantiles at 0.1 … 0.9) of the
+  reference values, duplicate edges dropped; the bin of x = the number of edges strictly below x. For every feature
+  and for the deployed score, per post-deployment snapshot: PSI = Σ (a − e) · ln(a / e) over the bins, where e and
+  a are the reference and actual shares and an empty bin counts as `psi_floor`. Status: `stable` < `psi_watch`
+  ≤ `watch` < `psi_drift` ≤ `drift`.
+- **Realised performance**, on every labelled post-deployment month: AUC, Brier, ECE (10 bins), mean predicted and
+  observed churn. Alerts: ECE > `alert_max_ece`, |mean predicted − observed| > `alert_max_mean_gap`, AUC <
+  `alert_min_auc`.
+- `monitoring.status`: `retrain` if a labelled month has a performance alert, else `watch` if any feature drifted,
+  else `ok`.
+
+**Retraining** (`retraining`): the *challenger* has the deployed model's features, refitted (§5) on every labelled
+pre-deployment snapshot (`refit_splits`), then its intercept is recalibrated on the `calibrate_on` month: the
+offset d with Σ sigmoid(η + d) = Σ y (Newton's method in one dimension, from d = 0). Champion and challenger are
+then scored on the `decide_on` month, which neither has seen. The challenger is promoted only if all four checks
+pass: AUC ≥ champion AUC − `max_auc_drop`; Brier < champion Brier; ECE ≤ `max_ece`; recall gap (§6) ≤
+`max_recall_gap`. Promoted, it becomes the artefact: `model_version` 1.1.0, `lineage.parent_model_version` 1.0.0,
+`high_risk_threshold` = the 0.9 quantile of its scores on the `recent` month, `base_rate` = the churn rate of that
+month, `test_metrics` from the holdout, and a `monitoring_reference` (edges and shares) for the next monitoring run.
+
+**Versioning.** Schema changes are additive: a 1.0 reader (the v1.0 API) loads a 1.1 artefact, and the v1.1
+outputs on the 2026-05 export contain every field of the v1.0 golden files with the same value
+(`scripts/parity.py --backcompat`). The previous contract is kept in `contract/history/`.
