@@ -31,3 +31,15 @@ Ollama model, ...) produced something you kept, changed or rejected.
 ## My entries
 
 <!-- Start below this line. Phase 0 asks you to write your first entry. -->
+
+### 2026-06-02 · Phase 0 · Building the R toolchain image on WSL
+* **Tool / model:** Gemini 2.5 Flash (free tier)
+* **Prompt (summary or paste):**
+  > Prompt 1 of Phase 0 with the output of `scripts/doctor.sh` (Docker found, R image missing).
+* **What it produced:** `sudo apt install r-base` and `install.packages("tidymodels")`, plus the `docker build` line.
+* **What I kept / changed / rejected, and why:** kept the `docker build -f tracks/r/Dockerfile --target dev` line;
+  rejected the local R install: the Ubuntu R would be a different version from CI's, and the whole tidymodels
+  meta-package is far more than `DESCRIPTION` needs.
+* **How I verified it:** `scripts/doctor.sh` shows the image; `make lint test` inside it (all skipped); CI's R job green.
+* **Time saved / lost (honest guess):** saved ~20 minutes.
+* **What I learned:** the project's pinned toolchain is the source of truth, not a generic install answer.
