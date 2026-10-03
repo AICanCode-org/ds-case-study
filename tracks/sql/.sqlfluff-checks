@@ -1,0 +1,19 @@
+# these files are templates filled by the runner (identifiers come only from the contract)
+[sqlfluff]
+dialect = duckdb
+templater = python
+max_line_length = 120
+rules = CP01, CP02, CP05, AL01, AL02, AL08, AM01, AM02, ST01, ST02, ST03, ST08, RF01, LT12, LT13, CV02, CV03, CV05
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.identifiers]
+extended_capitalisation_policy = lower
+
+[sqlfluff:templater:python:context]
+table = customers
+column = customer_id
+to_table = customers
+min = 0.0
+max = 1.0

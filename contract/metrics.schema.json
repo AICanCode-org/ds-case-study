@@ -1,0 +1,398 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AICanCode-org/ds-case-study/contract/metrics.schema.json",
+  "title": "ChurnCast run metrics (out/metrics.json)",
+  "description": "Everything one training run reports: data quality, snapshots, the split, leakage, every experiment, the champion, calibration, slices, fairness and the gate. Read by the tests, CI, the model card and parity.py.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generator",
+    "dataset",
+    "data_quality",
+    "snapshots",
+    "split",
+    "leakage",
+    "experiments",
+    "champion",
+    "test",
+    "calibration",
+    "slices",
+    "fairness",
+    "gate"
+  ],
+  "$defs": {
+    "rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "rate_or_null": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "test": {
+      "type": "object",
+      "required": [
+        "auc",
+        "average_precision",
+        "brier",
+        "log_loss",
+        "ece",
+        "contacted",
+        "churners_reached",
+        "precision_at_top",
+        "recall_at_top",
+        "lift_at_top",
+        "net_value_inr_per_month"
+      ],
+      "properties": {
+        "auc": {
+          "$ref": "#/$defs/rate"
+        },
+        "average_precision": {
+          "$ref": "#/$defs/rate"
+        },
+        "brier": {
+          "$ref": "#/$defs/rate"
+        },
+        "log_loss": {
+          "type": "number",
+          "minimum": 0
+        },
+        "ece": {
+          "$ref": "#/$defs/rate"
+        },
+        "contacted": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "churners_reached": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "precision_at_top": {
+          "$ref": "#/$defs/rate"
+        },
+        "recall_at_top": {
+          "$ref": "#/$defs/rate"
+        },
+        "lift_at_top": {
+          "type": "number",
+          "minimum": 0
+        },
+        "net_value_inr_per_month": {
+          "type": "number"
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "generator": {
+      "type": "object",
+      "required": [
+        "track",
+        "version"
+      ],
+      "properties": {
+        "track": {
+          "enum": [
+            "python",
+            "sql",
+            "r"
+          ]
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "required": [
+        "export",
+        "period_end",
+        "contract_version"
+      ]
+    },
+    "data_quality": {
+      "type": "object",
+      "required": [
+        "raw_rows",
+        "clean_rows",
+        "issues",
+        "checks"
+      ],
+      "properties": {
+        "issues": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "severity",
+              "status",
+              "failing_rows",
+              "observed"
+            ],
+            "properties": {
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "pass",
+                  "warn",
+                  "fail"
+                ]
+              },
+              "failing_rows": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "snapshot",
+          "split",
+          "rows",
+          "churned",
+          "churn_rate"
+        ],
+        "properties": {
+          "split": {
+            "enum": [
+              "train",
+              "test",
+              "recent",
+              "holdout",
+              "score"
+            ]
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "churned": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "churn_rate": {
+            "$ref": "#/$defs/rate_or_null"
+          }
+        }
+      }
+    },
+    "split": {
+      "type": "object",
+      "required": [
+        "train_snapshots",
+        "test_snapshots",
+        "train_rows",
+        "test_rows",
+        "train_churn_rate",
+        "test_churn_rate",
+        "folds",
+        "customers_in_two_folds"
+      ],
+      "properties": {
+        "customers_in_two_folds": {
+          "const": 0
+        }
+      }
+    },
+    "leakage": {
+      "type": "object",
+      "required": [
+        "feature_auc",
+        "max_feature",
+        "max_feature_auc",
+        "limit",
+        "probe",
+        "probe_auc",
+        "passed"
+      ]
+    },
+    "experiments": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "features",
+          "cv",
+          "test"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "prior",
+              "rule",
+              "logistic"
+            ]
+          },
+          "cv": {
+            "type": "object",
+            "required": [
+              "auc_mean",
+              "auc_sd",
+              "brier_mean",
+              "log_loss_mean",
+              "folds"
+            ]
+          },
+          "test": {
+            "$ref": "#/$defs/test"
+          }
+        }
+      }
+    },
+    "champion": {
+      "type": "object",
+      "required": [
+        "experiment",
+        "reason",
+        "features",
+        "intercept",
+        "coefficients",
+        "feature_means",
+        "importance",
+        "high_risk_threshold"
+      ]
+    },
+    "test": {
+      "$ref": "#/$defs/test"
+    },
+    "calibration": {
+      "type": "object",
+      "required": [
+        "bins",
+        "ece",
+        "mean_pred",
+        "observed_rate"
+      ],
+      "properties": {
+        "bins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "bin",
+              "lower",
+              "upper",
+              "n",
+              "mean_pred",
+              "observed"
+            ]
+          }
+        }
+      }
+    },
+    "slices": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "value",
+            "n",
+            "churners",
+            "churn_rate",
+            "mean_pred",
+            "auc",
+            "contacted",
+            "flagged_rate",
+            "recall_at_top"
+          ],
+          "properties": {
+            "auc": {
+              "$ref": "#/$defs/rate_or_null"
+            },
+            "recall_at_top": {
+              "$ref": "#/$defs/rate_or_null"
+            }
+          }
+        }
+      }
+    },
+    "fairness": {
+      "type": "object",
+      "required": [
+        "dimension",
+        "groups",
+        "recall_gap",
+        "flagged_rate_ratio",
+        "max_recall_gap",
+        "passed"
+      ]
+    },
+    "gate": {
+      "type": "object",
+      "required": [
+        "checks",
+        "passed"
+      ],
+      "properties": {
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "value",
+              "threshold",
+              "passed"
+            ],
+            "properties": {
+              "passed": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "passed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "description": "1.1: drift (PSI) and realised performance of the deployed model"
+    },
+    "retraining": {
+      "type": "object",
+      "description": "1.1: champion/challenger comparison and the promotion decision"
+    }
+  }
+}

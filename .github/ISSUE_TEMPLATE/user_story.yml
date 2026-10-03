@@ -1,0 +1,23 @@
+name: Modelling question (user story)
+description: Something a stakeholder needs from the model, with how we will know it is right
+labels: [story]
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: Story
+      value: "As a <Head of Growth | retention agent | finance>, I want <prediction / explanation / number> so that I can <decision>."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: The metric, its definition (feature-spec.md section), the threshold, the test that pins it and the caveat it needs.
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: Estimate
+      options: [S (< 2 h), M (half a day), L (a day or more: split it)]

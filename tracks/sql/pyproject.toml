@@ -1,0 +1,26 @@
+[project]
+name = "churncast-sql"
+version = "1.0.0"
+description = "ChurnCast churn model, SQL (DuckDB) track"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["out"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["churncast_sql"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

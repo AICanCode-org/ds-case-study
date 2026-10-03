@@ -1,0 +1,10 @@
+# Hand-written: the functions run.R, the report and the tests use.
+export(analyse)
+export(build_features)
+export(clean_tables)
+export(feature_names)
+export(load_contract)
+export(load_export)
+export(load_raw)
+export(main)
+export(write_outputs)

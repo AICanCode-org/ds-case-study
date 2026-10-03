@@ -1,0 +1,123 @@
+{
+  "cms_file": "ds-case-study",
+  "slug": "ds-case-study",
+  "title": "ChurnCast: End-to-End Data Science Case Study on Subscription Churn",
+  "tagline": "Take a messy meal-subscription export from raw CSVs to a tested, leakage-free churn model that beats the retention team's rule of thumb, with grouped out-of-time validation, calibration and fairness checks, CI with an evaluation gate, a prediction API with an AI explainer, and monitoring and retraining after it goes live",
+  "description": "TiffinBox, a meal-subscription startup, loses about 9 % of its paying customers every month, and its retention team can call only 10 % of them with an offer. Over nine phases you build the churn model they need, like a professional data science team: frame the decision and the label, write a data contract, a timeline and a modelling plan with ADRs, then build the pipeline test-first in your track: load four deliberately messy CSVs as text, apply documented cleaning rules that count every row they drop, check the contract, build point-in-time features that only use what was known at each month-end snapshot (and avoid the leaky cancellation_reason column), compare two baselines (the training churn rate and the team's five-flag rule) with two logistic regressions using grouped 5-fold cross-validation, then evaluate the champion once on out-of-time test months: AUC, average precision, Brier, calibration (ECE), precision and recall of the top-10 % call list, net value per month, slices, an age-band fairness check and a leakage scan, all behind a release gate. Golden files, invariants, leakage and contract-violation tests pin every number, and the Python, SQL and R tracks must agree (features to 1e-9, metrics and coefficients to 1e-6). CI executes the notebook or R Markdown report, runs the gate and checks parity; a generated model card and a FastAPI prediction API with an optional AI explainer (numbered facts in, guardrails out, a deterministic template as fallback) ship in Docker as v1.0.0. Then the model meets the real world: a new acquisition channel breaks the contract, prices change, and the deployed model's calibration slips. You version the contract, add drift (PSI) and realised-performance monitoring, recalibrate and retrain a challenger, decide champion vs challenger on a holdout month, add request ids, JSON logs and Prometheus metrics to the API, and write a blameless post-mortem (v1.1.0). Pick Python (pandas, scikit-learn, Jupyter), SQL (DuckDB) or R (tidymodels, R Markdown); the data, contract, golden files and API are shared. Everything runs on a laptop with no paid service and no API key.",
+  "difficulty": "intermediate",
+  "tech_stack": [
+    "pandas",
+    "scikit-learn",
+    "DuckDB",
+    "tidymodels",
+    "Jupyter",
+    "R Markdown",
+    "FastAPI",
+    "Docker",
+    "GitHub Actions"
+  ],
+  "tracks": [
+    {
+      "id": "python",
+      "label": "Python",
+      "tech_stack": [
+        "Python 3.12",
+        "pandas",
+        "scikit-learn",
+        "Jupyter",
+        "pytest",
+        "ruff"
+      ],
+      "folder": "tracks/python"
+    },
+    {
+      "id": "sql",
+      "label": "SQL",
+      "tech_stack": [
+        "DuckDB SQL",
+        "sqlfluff",
+        "Python runner",
+        "scikit-learn (the fit only)",
+        "pytest"
+      ],
+      "folder": "tracks/sql"
+    },
+    {
+      "id": "r",
+      "label": "R",
+      "tech_stack": [
+        "R 4.6",
+        "tidymodels",
+        "dplyr",
+        "R Markdown",
+        "testthat",
+        "covr",
+        "lintr",
+        "Docker toolchain"
+      ],
+      "folder": "tracks/r"
+    }
+  ],
+  "prerequisites": [
+    {
+      "title": "Git and the command line basics",
+      "url": null
+    },
+    {
+      "title": "One of: Python with pandas, SQL (GROUP BY, JOIN, window functions) or R with dplyr",
+      "url": null
+    },
+    {
+      "title": "Basic statistics and the idea of a classifier: probabilities, a train/test split, overfitting",
+      "url": null
+    }
+  ],
+  "outcomes": [
+    "Frame a business request as a prediction problem: the decision, the unit, the snapshot, the label and what a wrong call costs",
+    "Write a data contract (schema, accepted values, checks with severities) and a modelling plan with ADRs before training anything",
+    "Build point-in-time features from messy event tables without leaking the future, and recognise a leaky column",
+    "Validate honestly: grouped cross-validation by customer and an out-of-time test set used once",
+    "Compare models with baselines first (prior and the team's rule of thumb), and choose a champion by a rule written in advance",
+    "Evaluate for the decision: ranking (AUC, AP), probabilities (Brier, calibration), the capacity-limited call list, value, slices and fairness",
+    "Pin a model with golden files, invariants, leakage and contract-violation tests, and make three implementations agree",
+    "Gate a release in GitHub Actions CI, generate a model card from the numbers, and serve the model with a FastAPI API in Docker",
+    "Add an AI explainer that only sees aggregate facts, is checked by guardrails and falls back to a deterministic template",
+    "Monitor a live model (PSI drift, realised performance), retrain and recalibrate a challenger, decide on a holdout and write a blameless post-mortem",
+    "Use AI assistants deliberately and verify every number they produce"
+  ],
+  "ai_feature": "An optional AI explainer in the prediction API: for one customer it receives only numbered facts (the churn probability, the base rate and the top feature contributions; never the customer id, raw records or a protected attribute) and writes a short note for a retention agent. Guardrails reject any answer with an unknown citation, a number that is not a correct rounding of a fact, a certainty claim (\"will churn\") or a sensitive attribute, and the API then returns a deterministic template instead. Offline by default; any OpenAI-compatible endpoint (a local Ollama, or a free Gemini/Groq key) can be plugged in",
+  "requires_paid_services": false,
+  "access": {
+    "default": "pro",
+    "plans": [
+      "pro",
+      "elite",
+      "campus"
+    ],
+    "free_phases": [
+      0
+    ]
+  },
+  "repo": {
+    "url": "https://github.com/AICanCode-org/ds-case-study",
+    "starter_ref": "main",
+    "solution_ref": "solution",
+    "phase_tags": [
+      "phase-0-end",
+      "phase-1-end",
+      "phase-2-end",
+      "phase-3-end",
+      "phase-4-end",
+      "phase-5-end",
+      "phase-6-end",
+      "phase-7-end",
+      "phase-8-end"
+    ],
+    "releases": [
+      "v1.0.0",
+      "v1.1.0"
+    ]
+  },
+  "live_demo_url": null,
+  "portfolio_blurb": "Built ChurnCast, an end-to-end churn model for a meal-subscription business on a deliberately messy export (customers, invoices, usage, support tickets): a versioned data contract with severity-graded checks, counted cleaning rules, point-in-time features at month-end snapshots (with a leakage scan that caught the cancellation_reason trap), two baselines and two logistic regressions compared with grouped 5-fold cross-validation, and an out-of-time test used once. The champion (test AUC 0.743, ECE 0.008) ranks the top-10 % call list 3.0x better than random, finds 30 % of next month's churners and is worth about ₹1.1 lakh a month against ₹63,000 for the team's rule of thumb, within an age-band recall gap of 0.12. Golden files, invariants and leakage tests; Python, SQL and R implementations that agree to 1e-6; a release gate and a generated model card in GitHub Actions CI; a FastAPI prediction API in Docker with a guard-railed AI explainer; and, after deployment, PSI drift and realised-performance monitoring that flagged a miscalibrated model, a recalibrated challenger promoted on a holdout month (Brier 0.119 → 0.113, ECE 0.059 → 0.013), request ids, JSON logs, Prometheus metrics and a blameless post-mortem (v1.1)."
+}

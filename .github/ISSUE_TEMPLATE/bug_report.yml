@@ -1,0 +1,29 @@
+name: Bug or wrong number
+description: Something crashes, or a number in metrics.json / model.json / the API looks wrong
+labels: [bug]
+body:
+  - type: dropdown
+    id: track
+    attributes:
+      label: Track
+      options: [Python, SQL, R, API, Shared / contract]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: For a wrong number, quote the JSON path (e.g. `$.test.ece`) and the feature-spec.md section.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      placeholder: "make run DATA=../../data/raw/2026-05 → ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / tag / commit

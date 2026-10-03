@@ -1,0 +1,24 @@
+invoice_id,customer_id,billing_month,kind,plan,list_price,discount,status
+INV0000001,C00001,2025-11,charge,standard,3299,0,paid
+INV0000002,C00001,2025-12,charge,Standard,₹3299,0,paid
+INV0000003,C00001,2026-01,charge,standard,"3,299.00",330,paid
+INV0000004,C00001,2026-02,charge,standard,3299,0,paid
+INV0000005,C00001,2026-03,charge,standard,3299,0,paid
+INV0000006,C00002,2026-01,charge,basic,2499,500,paid
+INV0000007,C00002,2026-02,charge,basic,2499,500,failed
+INV0000008,C00002,2026-02,charge,BASIC ,2499,500,paid
+INV0000009,C00003,2025-12,charge,premium,4499,0,paid
+INV0000010,C00003,2026-01,charge,premium,₹4499,0,paid
+INV0000011,C00004,2026-01,charge,basic,2499,0,paid
+INV0000012,C00004,2026-02,charge,standard,3299,0,paid
+INV0000013,C00004,2026-03,charge,standard,3299,0,paid
+INV0000014,C00005,2026-02,charge,basic,2499,0,paid
+INV0000015,C00006,2025-10,charge,premium,4499,0,paid
+INV0000016,C00006,2025-11,charge,premium,4499,0,failed
+INV0000017,C00006,2025-11,charge,premium,4499,0,paid
+INV0000018,C00006,2025-12,charge,premium,4499,0,paid
+INV0000019,C00006,2026-01,charge,premium,4499,450,paid
+INV0000020,C00006,2026-01,refund,premium,-300.00,0,paid
+INV0000020,C00006,2026-01,refund,premium,-300.00,0,paid
+INV0000021,C00006,2026-02,charge,premium, 4499.0 ,0,paid
+INV0000022,C00006,2026-03,charge,premium,4499,0,paid

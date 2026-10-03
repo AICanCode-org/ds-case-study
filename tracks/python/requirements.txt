@@ -1,0 +1,5 @@
+# Exact versions: CI installs the same ones, so a model trained on your laptop and in CI is the same model.
+numpy==2.5.3
+pandas==3.0.6
+scikit-learn==1.9.1
+PyYAML==6.0.3

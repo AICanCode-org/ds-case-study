@@ -1,0 +1,8 @@
+customer_id,signup_date,city,acquisition_channel,age_band,cancellation_reason
+C00001,2025-11-15,PUNE,organic,25-34,
+C00002,2026-01-03,Bangalore,paid_social,18-24,too expensive
+C00003,10/12/2025,Hyderabad,,,food quality
+C00004,2026-01-20,nagpur ,REFERRAL,35-44,
+C00004,2026-01-20,nagpur ,REFERRAL,35-44,
+C00005,2026-02-30,Indore,organic,45+,
+C00006,2025-10-01,Indore, partner,45+,

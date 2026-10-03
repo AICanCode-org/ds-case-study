@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "name": "churncast",
+  "model_version": "1.0.0",
+  "kind": "logistic_regression",
+  "target": "churned_next_month",
+  "experiment": "E2",
+  "features": [
+    "tenure_months",
+    "is_new",
+    "plan_standard",
+    "plan_premium",
+    "discount_share",
+    "price_change_pct",
+    "meals_last_month",
+    "skip_rate_last_month",
+    "meals_trend",
+    "late_rate_3m",
+    "avg_rating_3m",
+    "rating_missing",
+    "tickets_90d",
+    "open_tickets",
+    "failed_payments_3m"
+  ],
+  "intercept": 2.301817030939458,
+  "coefficients": {
+    "tenure_months": -0.031703576662827505,
+    "is_new": 0.6429589145302274,
+    "plan_standard": -0.07920156518893101,
+    "plan_premium": 0.0234733398721418,
+    "discount_share": 3.217253415426954,
+    "price_change_pct": 3.215891714151317,
+    "meals_last_month": 0.004191035687848376,
+    "skip_rate_last_month": 3.8336536321955257,
+    "meals_trend": -0.017167825087939993,
+    "late_rate_3m": -0.1928083205353069,
+    "avg_rating_3m": -1.342971782299839,
+    "rating_missing": -0.3345307461064876,
+    "tickets_90d": 0.2757528271622518,
+    "open_tickets": -0.13884832540276246,
+    "failed_payments_3m": 0.3590525265623662
+  },
+  "feature_means": {
+    "tenure_months": 4.057747428764121,
+    "is_new": 0.4155285786545271,
+    "plan_standard": 0.38635980441746753,
+    "plan_premium": 0.1603439554881133,
+    "discount_share": 0.030468767467473557,
+    "price_change_pct": 0.0012641149930895411,
+    "meals_last_month": 21.05311077389985,
+    "skip_rate_last_month": 0.11601370405332376,
+    "meals_trend": 1.9463834092058674,
+    "late_rate_3m": 0.07369061989818151,
+    "avg_rating_3m": 4.18095169164858,
+    "rating_missing": 0.25316135558927666,
+    "tickets_90d": 0.41755184623166414,
+    "open_tickets": 0.0573259146855505,
+    "failed_payments_3m": 0.07410217501264542
+  },
+  "high_risk_threshold": 0.20459667835677164,
+  "base_rate": 0.09720114651829372,
+  "training": {
+    "export": "2026-05",
+    "contract_version": "1.0.0",
+    "snapshots": [
+      "2025-09",
+      "2025-10",
+      "2025-11",
+      "2025-12",
+      "2026-01",
+      "2026-02"
+    ],
+    "rows": 11862,
+    "churners": 1153
+  },
+  "test_metrics": {
+    "auc": 0.7430089781294741,
+    "average_precision": 0.23196024859699874,
+    "brier": 0.07534263360065004,
+    "ece": 0.0080254110184479,
+    "precision_at_top": 0.2655038759689923,
+    "recall_at_top": 0.30242825607064017
+  },
+  "generator": {
+    "track": "python",
+    "version": "1.0.0"
+  }
+}

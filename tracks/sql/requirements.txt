@@ -1,0 +1,5 @@
+# Exact versions: CI installs the same ones. DuckDB runs the analysis; scikit-learn fits the logistic regression.
+duckdb==1.5.6
+numpy==2.5.3
+scikit-learn==1.9.1
+PyYAML==6.0.3

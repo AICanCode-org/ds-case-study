@@ -1,0 +1,83 @@
+---
+title: "ChurnCast: which TiffinBox subscribers will cancel next month?"
+subtitle: "R track (tidymodels): data, experiments, calibration, slices and the gate"
+output:
+  html_document:
+    toc: true
+params:
+  data: "../../../data/raw/2026-05"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 8, fig.height = 3.5)
+suppressPackageStartupMessages(pkgload::load_all("..", quiet = TRUE, export_all = TRUE))
+library(ggplot2)
+result <- analyse(params$data, load_contract())
+m <- result$metrics
+f <- result$features
+pct <- function(x) sprintf("%.1f %%", 100 * x)
+```
+
+## 1. The question
+
+TODO: the evidence and the caveat.
+
+```{r 1-the-question}
+# TODO (Phase 3)
+```
+
+## 2. Data quality: what cleaning changed
+
+TODO: the evidence and the caveat.
+
+```{r 2-data-quality-what-cleaning-c}
+# TODO (Phase 3)
+```
+
+## 3. Churn per snapshot (train = grey, out-of-time test = red)
+
+TODO: the evidence and the caveat.
+
+```{r 3-churn-per-snapshot-train-gre}
+# TODO (Phase 3)
+```
+
+## 4. Experiments: grouped 5-fold cross-validation, then the test months once
+
+TODO: the evidence and the caveat.
+
+```{r 4-experiments-grouped-5-fold-c}
+# TODO (Phase 3)
+```
+
+## 5. What drives the score (standardised coefficients)
+
+TODO: the evidence and the caveat.
+
+```{r 5-what-drives-the-score-standa}
+# TODO (Phase 3)
+```
+
+## 6. Calibration on the test months
+
+TODO: the evidence and the caveat.
+
+```{r 6-calibration-on-the-test-mont}
+# TODO (Phase 3)
+```
+
+## 7. Slices and fairness
+
+TODO: the evidence and the caveat.
+
+```{r 7-slices-and-fairness}
+# TODO (Phase 3)
+```
+
+## 8. The gate
+
+TODO: the evidence and the caveat.
+
+```{r 8-the-gate}
+# TODO (Phase 3)
+```
