@@ -4,10 +4,13 @@
 version: 2
 updates:
   - package-ecosystem: pip
-    directories: [/tracks/python, /tracks/sql]
+    directories: [/tracks/python, /tracks/sql, /serving]
     schedule: { interval: weekly }
     groups:
       python-minor-patch: { update-types: [minor, patch] }
   - package-ecosystem: github-actions
     directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: docker
+    directories: [/tracks/python, /tracks/sql, /tracks/r, /serving]
     schedule: { interval: weekly }

@@ -115,3 +115,17 @@ Ollama model, ...) produced something you kept, changed or rejected.
 * **How I verified it:** two runs of the R job: first build ~5 min, cached build < 1 min; same results locally.
 * **Time saved / lost (honest guess):** neutral.
 * **What I learned:** "simpler" CI that is not reproducible moves the cost to the day it breaks.
+
+### 2026-06-22 · Phase 6 · Attacking the AI explainer's guardrails
+* **Tool / model:** Ollama llama3.2 (local) for the explainer; ChatGPT (free tier) for Prompt 2
+* **Prompt (summary or paste):**
+  > Prompt 2 of Phase 6: write answers that would mislead an agent but might pass the guardrails.
+* **What it produced:** eight answers: invented percentages, "this customer will leave", a citation `[R7]` that does
+  not exist, a note mentioning the customer's age, and a few honest ones.
+* **What I kept / changed / rejected, and why:** kept them all as fake-LLM test cases; every misleading one was
+  already rejected (invented number, certainty claim, unknown citation, sensitive attribute). Rejected its advice
+  to send the customer's city and age band to the LLM "for context": the explainer only sees numbered facts.
+* **How I verified it:** `make coverage` in `serving/` with the new cases; the smoke test with the provider
+  unreachable returns the template with `fallback: true`.
+* **Time saved / lost (honest guess):** saved ~1 hour of inventing attacks.
+* **What I learned:** guardrails are tested like any other code: with the cases that should fail.

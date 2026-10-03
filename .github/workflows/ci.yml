@@ -1,4 +1,6 @@
-# Full CI (Phase 5). Runs only the tracks whose files changed (plus everything when shared files change), each
+# Full CI (Phase 6 = Phase 5 + the prediction API's tests + a Docker job that builds every image, runs the three
+# pipelines in containers with the parity checks, and smoke-tests the API, also with the AI provider down).
+# Runs only the tracks whose files changed (plus everything when shared files change), each
 # through the reusable workflow (lint, unit, data and model tests with a coverage gate, the run, schema validation,
 # the evaluation gate, the report), then checks that every track's metrics.json and model.json match the golden
 # files and that their features.csv are identical. "ci-ok" is the single check to mark as *required* in branch
@@ -31,6 +33,7 @@ jobs:
       python: ${{ steps.filter.outputs.python }}
       sql: ${{ steps.filter.outputs.sql }}
       r: ${{ steps.filter.outputs.r }}
+      serving: ${{ steps.filter.outputs.serving }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -45,6 +48,9 @@ jobs:
               - 'data/**'
               - 'scripts/**'
               - 'ruff.toml'
+              - 'models/**'
+              - 'docker-compose.yml'
+              - '.dockerignore'
               - '.github/workflows/**'
             python:
               - 'tracks/python/**'
@@ -52,6 +58,8 @@ jobs:
               - 'tracks/sql/**'
             r:
               - 'tracks/r/**'
+            serving:
+              - 'serving/**'
 
   contract:
     name: Contract · data, golden files, scripts, CMS export
@@ -68,8 +76,14 @@ jobs:
         run: python3 -m pip install -q jsonschema==4.26.0 ruff==0.16.10
       - name: The committed exports are exactly what the seeded generator produces
         run: python3 scripts/generate_data.py --check
-      - name: Every golden file matches its schema
-        run: python3 scripts/validate_outputs.py contract/golden/*.json
+      - name: Every golden file and every released model matches its schema
+        run: python3 scripts/validate_outputs.py contract/golden/*.json models/*.json
+      - name: The model card is generated from the golden files, never edited by hand
+        run: |
+          goldens=(contract/golden/metrics-*.json)   # sorted: the last one is the latest export
+          latest=${goldens[-1]#contract/golden/metrics-}
+          latest=${latest%.json}
+          python3 scripts/model_card.py --check docs/model-card.md "contract/golden/metrics-$latest.json" "contract/golden/model-$latest.json"
       - name: The golden files pass the evaluation gate
         run: for f in contract/golden/metrics-*.json; do python3 scripts/eval_gate.py "$f"; done
       - name: Lint the shared scripts
@@ -127,10 +141,74 @@ jobs:
           } 2>&1 | tee parity.txt   # bash -eo pipefail: any difference fails the step
           { echo '### Parity'; echo '```'; cat parity.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
+  serving:
+    name: API · lint + tests (AI explainer against a fake LLM)
+    needs: changes
+    if: needs.changes.outputs.serving == 'true' || needs.changes.outputs.shared == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: serving
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: serving/requirements-dev.txt
+      - run: make install
+      - run: make lint
+      - run: make coverage
+
+  docker:
+    name: Docker · images, pipelines + parity in containers, API smoke test
+    needs: changes
+    if: needs.changes.outputs.shared == 'true' || needs.changes.outputs.python == 'true' || needs.changes.outputs.sql == 'true' || needs.changes.outputs.r == 'true' || needs.changes.outputs.serving == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build every image (the API + the three pipelines)
+        run: docker compose --profile train build
+      - name: Run each track's pipeline in its container (non-root, read-only file system)
+        run: |
+          for track in python sql r; do docker compose --profile train run --rm "$track"; done
+      - name: Parity of the three containers' metrics.json and model.json
+        run: |
+          docker compose --profile train run --rm --no-deps parity
+          docker compose --profile train run --rm --no-deps parity-model
+      - name: Start the API and wait until its health check passes
+        run: docker compose up -d --no-build --wait --wait-timeout 120 api
+      - name: Smoke test
+        run: scripts/smoke-test.sh http://localhost:8000
+      - name: The API runs as a non-root user
+        run: test "$(docker compose exec -T api id -u)" != 0
+      - name: The AI provider is down → the explainer falls back to the template, the API still answers
+        env:
+          AI_PROVIDER: llm
+          LLM_BASE_URL: http://10.255.255.1:9/v1
+          LLM_TIMEOUT_MS: "1500"
+        run: |
+          docker compose up -d --no-build --wait --wait-timeout 120 --force-recreate api
+          EXPECT_FALLBACK=true scripts/smoke-test.sh http://localhost:8000
+      - name: Serve the R track's model, trained in its container a minute ago
+        env:
+          MODEL_PATH: /runs/r/model.json
+        run: |
+          docker compose up -d --no-build --wait --wait-timeout 120 --force-recreate api
+          scripts/smoke-test.sh http://localhost:8000
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose --profile train logs --no-color
+      - name: Tear down
+        if: always()
+        run: docker compose --profile train down -v
+
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [changes, contract, python, sql, r, parity]
+    needs: [changes, contract, python, sql, r, parity, serving, docker]
     runs-on: ubuntu-latest
     steps:
       - name: Fail if any needed job failed or was cancelled (skipped is fine)
