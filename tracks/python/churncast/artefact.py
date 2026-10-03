@@ -4,6 +4,8 @@ beta_j * (x_j - mean_j) on the log-odds scale (the training mean is the baseline
 
 from __future__ import annotations
 
+import math
+
 SCHEMA_VERSION = "1.0"
 
 
@@ -19,20 +21,34 @@ def build_artefact(
     version: str,
     track: str,
 ) -> dict:
-    # TODO(M5) build_artefact: model.json exactly as contract/model.schema.json describes: any track's artefact
-    # must be servable by the API. Spec: contract/feature-spec.md §7 and contract/model.schema.json; tests:
-    # artefact.
-    raise NotImplementedError("TODO(M5) build_artefact: see the comment above")
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "name": "churncast",
+        "model_version": version,
+        "kind": "logistic_regression",
+        "target": "churned_next_month",
+        "experiment": experiment,
+        "features": features,
+        "intercept": fit["intercept"],
+        "coefficients": {f: fit["coefficients"][f] for f in features},
+        "feature_means": {f: means[f] for f in features},
+        "high_risk_threshold": threshold,
+        "base_rate": base_rate,
+        "training": training,
+        "test_metrics": test_metrics,
+        "generator": {"track": track, "version": version},
+    }
 
 
 def score(artefact: dict, row: dict) -> float:
-    # TODO(M5) score: the probability for one customer (a dict of feature values). Spec:
-    # contract/feature-spec.md §7 and contract/model.schema.json; tests: artefact.
-    raise NotImplementedError("TODO(M5) score: see the comment above")
+    eta = artefact["intercept"] + sum(b * float(row[f]) for f, b in artefact["coefficients"].items())
+    return 1.0 / (1.0 + math.exp(-eta))
 
 
 def contributions(artefact: dict, row: dict) -> list[dict]:
     """Per-feature log-odds contributions, largest absolute first (ties: contract order)."""
-    # TODO(M5) contributions: beta_j * (x_j - training mean_j) on the log-odds scale, largest absolute first.
-    # Spec: contract/feature-spec.md §7 and contract/model.schema.json; tests: artefact.
-    raise NotImplementedError("TODO(M5) contributions: see the comment above")
+    out = []
+    for f, b in artefact["coefficients"].items():
+        c = b * (float(row[f]) - artefact["feature_means"][f])
+        out.append({"feature": f, "value": float(row[f]), "contribution": c})
+    return sorted(out, key=lambda r: -abs(r["contribution"]))

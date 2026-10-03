@@ -25,30 +25,62 @@ COUNTS = ["meals_ordered", "meals_skipped", "late_deliveries", "ratings_count", 
 
 
 def normalise_label(value: str) -> str:
-    # TODO(M1) normalise_label: trim + lower-case, before any comparison (' Bangalore' and 'bangalore' are one
-    # city). Spec: contract/feature-spec.md §2; tests: clean.
-    raise NotImplementedError("TODO(M1) normalise_label: see the comment above")
+    return value.strip().lower()
 
 
 def parse_with(value: str, formats: list[str]) -> datetime | None:
-    # TODO(M1) parse_with: try the contract's formats in order; '05/03/2025' is 5 March (day first). Anything
-    # else, or an impossible date such as 31/02, is missing, never a guess. Spec: contract/feature-spec.md §2;
-    # tests: clean.
-    raise NotImplementedError("TODO(M1) parse_with: see the comment above")
+    value = value.strip()
+    for fmt in formats:
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
 
 
 def parse_money(value: str) -> float | None:
     """'₹3,299', '3,299.00', ' 3299.0 ', '-150.00' -> rupees; anything else -> None."""
-    # TODO(M1) parse_money: strip the rupee sign, thousands separators and spaces; keep the sign of refunds;
-    # '3,299.00' -> 3299. Spec: contract/feature-spec.md §2; tests: clean.
-    raise NotImplementedError("TODO(M1) parse_money: see the comment above")
+    text = value.replace("₹", "").replace(",", "").strip()
+    try:
+        return round(float(text), 2)
+    except ValueError:
+        return None
 
 
 def clean_customers(raw: pd.DataFrame, contract: dict, issues: dict) -> pd.DataFrame:
-    # TODO(M1) clean_customers: invalid signup dates go, exact duplicates keep one row, city aliases from the
-    # contract, a blank channel or age band becomes 'unknown'. Count every rule in `issues`. Spec:
-    # contract/feature-spec.md §2; tests: clean.
-    raise NotImplementedError("TODO(M1) clean_customers: see the comment above")
+    rules = contract["cleaning"]
+    df = raw.copy()
+    df["signup"] = [parse_with(v, rules["date_formats"]) for v in df["signup_date"]]
+    bad = df["signup"].isna()
+    issues["customers_invalid_signup_date"] = int(bad.sum())
+    df = df[~bad]
+    before = len(df)
+    df = df.drop_duplicates(subset=contract["files"]["customers"]["columns"], keep="first")
+    issues["customers_exact_duplicates"] = before - len(df)
+    df["customer_id"] = df["customer_id"].str.strip()
+    city = df["city"].map(normalise_label)
+    df["city"] = city.map(lambda c: rules["city_aliases"].get(c, c))
+    missing = rules["missing_label"]
+    channel = df["acquisition_channel"].map(normalise_label)
+    issues["customers_channel_missing"] = int((channel == "").sum())
+    df["acquisition_channel"] = channel.where(channel != "", missing)
+    age = df["age_band"].map(normalise_label)
+    issues["customers_age_band_missing"] = int((age == "").sum())
+    df["age_band"] = age.where(age != "", missing)
+    df["city_tier"] = df["city"].map(lambda c: rules["city_tier"].get(c, missing))
+    df["signup_month"] = df["signup"].map(lambda d: d.year * 12 + d.month - 1)
+    df["signup_date"] = df["signup"].map(lambda d: d.strftime("%Y-%m-%d"))
+    cols = [
+        "customer_id",
+        "signup_date",
+        "signup_month",
+        "city",
+        "city_tier",
+        "acquisition_channel",
+        "age_band",
+        "cancellation_reason",
+    ]
+    return df[cols].reset_index(drop=True)
 
 
 def month_index(value: str) -> int:
@@ -57,25 +89,60 @@ def month_index(value: str) -> int:
 
 
 def clean_invoices(raw: pd.DataFrame, customers: pd.DataFrame, contract: dict, issues: dict) -> pd.DataFrame:
-    # TODO(M1) clean_invoices: exact duplicates keep one row; invoices of unknown customers are orphans
-    # (counted, dropped). A duplicated charge would make a customer look like a renewer twice: check before you
-    # join. Spec: contract/feature-spec.md §2; tests: clean.
-    raise NotImplementedError("TODO(M1) clean_invoices: see the comment above")
+    before = len(raw)
+    df = raw.drop_duplicates(keep="first").copy()
+    issues["invoices_exact_duplicates"] = before - len(df)
+    for col in ("kind", "plan", "status"):
+        df[col] = df[col].map(normalise_label)
+    df["list_price"] = df["list_price"].map(parse_money)
+    df["discount"] = df["discount"].map(parse_money)
+    df["month"] = df["billing_month"].map(month_index)
+    known = df["customer_id"].isin(set(customers["customer_id"]))
+    issues["invoices_orphans"] = int((~known).sum())
+    cols = ["invoice_id", "customer_id", "billing_month", "month", "kind", "plan", "list_price", "discount", "status"]
+    return df[known][cols].reset_index(drop=True)
 
 
 def clean_usage(raw: pd.DataFrame, customers: pd.DataFrame, issues: dict) -> pd.DataFrame:
-    # TODO(M1) clean_usage: exact duplicates keep one row; a row with any negative count is dropped (counted),
-    # then orphans. Spec: contract/feature-spec.md §2; tests: clean.
-    raise NotImplementedError("TODO(M1) clean_usage: see the comment above")
+    before = len(raw)
+    df = raw.drop_duplicates(keep="first").copy()
+    issues["usage_exact_duplicates"] = before - len(df)
+    for col in COUNTS:
+        df[col] = df[col].astype(int)
+    negative = (df[COUNTS] < 0).any(axis=1)
+    issues["usage_negative_counts"] = int(negative.sum())
+    df = df[~negative]
+    known = df["customer_id"].isin(set(customers["customer_id"]))
+    issues["usage_orphans"] = int((~known).sum())
+    df = df[known].copy()
+    df["month"] = df["month"].map(month_index)
+    return df[["customer_id", "month", *COUNTS]].reset_index(drop=True)
 
 
 def clean_tickets(raw: pd.DataFrame, customers: pd.DataFrame, contract: dict, issues: dict) -> pd.DataFrame:
-    # TODO(M1) clean_tickets: unparseable created_at goes; a resolution before its creation is unknown (resolved
-    # = missing, counted), then orphans. Spec: contract/feature-spec.md §2; tests: clean.
-    raise NotImplementedError("TODO(M1) clean_tickets: see the comment above")
+    formats = contract["cleaning"]["timestamp_formats"]
+    df = raw.copy()
+    df["created"] = [parse_with(v, formats) for v in df["created_at"]]
+    bad = df["created"].isna()
+    issues["tickets_invalid_created_at"] = int(bad.sum())
+    df = df[~bad].copy()
+    df["resolved"] = [parse_with(v, formats) if v.strip() else None for v in df["resolved_at"]]
+    backwards = df["resolved"].notna() & (df["resolved"] < df["created"])
+    issues["tickets_resolved_before_created"] = int(backwards.sum())
+    df.loc[backwards, "resolved"] = None
+    df["category"] = df["category"].map(normalise_label)
+    known = df["customer_id"].isin(set(customers["customer_id"]))
+    issues["tickets_orphans"] = int((~known).sum())
+    return df[known][["ticket_id", "customer_id", "created", "category", "resolved"]].reset_index(drop=True)
 
 
 def clean_tables(raw: dict[str, pd.DataFrame], contract: dict) -> tuple[dict[str, pd.DataFrame], dict[str, int]]:
-    # TODO(M1) clean_tables: call the four cleaners in order; return the tables and the issues in ISSUE_ORDER.
-    # Spec: contract/feature-spec.md §2; tests: clean.
-    raise NotImplementedError("TODO(M1) clean_tables: see the comment above")
+    issues: dict[str, int] = {}
+    customers = clean_customers(raw["customers"], contract, issues)
+    tables = {
+        "customers": customers,
+        "invoices": clean_invoices(raw["invoices"], customers, contract, issues),
+        "usage": clean_usage(raw["usage"], customers, issues),
+        "tickets": clean_tickets(raw["tickets"], customers, contract, issues),
+    }
+    return tables, {k: issues[k] for k in ISSUE_ORDER}

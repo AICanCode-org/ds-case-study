@@ -6,36 +6,57 @@ from __future__ import annotations
 
 import pandas as pd
 
+from .contract import ContractError
+
 
 def _values(table: pd.DataFrame, column) -> pd.Series:
-    # TODO(M2) _values: the column(s) a check looks at (a list of columns means a composite key). Spec:
-    # contract/feature-spec.md §2 and contract/data-contract.yaml `checks`; tests: checks.
-    raise NotImplementedError("TODO(M2) _values: see the comment above")
+    if isinstance(column, list):
+        return table[column].astype(str).agg("|".join, axis=1)
+    return table[column]
 
 
 def failing_rows(check: dict, tables: dict[str, pd.DataFrame]) -> tuple[int, int]:
     """(failing rows, rows checked) for one check."""
-    # TODO(M2) failing_rows: one contract check -> (failing rows, checked rows), by type: unique, not_null,
-    # accepted_values, range, relationship, max_ratio. Spec: contract/feature-spec.md §2 and
-    # contract/data-contract.yaml `checks`; tests: checks.
-    raise NotImplementedError("TODO(M2) failing_rows: see the comment above")
+    table = tables[check["table"]]
+    kind = check["type"]
+    if kind == "unique":
+        v = _values(table, check["column"])
+        return int(len(v) - v.nunique()), len(v)
+    v = table[check["column"]]
+    if kind == "not_null":
+        return int((v.isna() | (v.astype(str).str.strip() == "")).sum()), len(v)
+    if kind == "accepted_values":
+        return int((~v.astype(str).isin([str(x) for x in check["values"]])).sum()), len(v)
+    if kind == "range":
+        known = v.dropna()
+        num = pd.to_numeric(known, errors="coerce")
+        return int((num.isna() | (num < check["min"]) | (num > check["max"])).sum()), len(known)
+    if kind == "relationship":
+        return int((~v.isin(set(tables[check["to"]]["customer_id"]))).sum()), len(v)
+    if kind == "max_ratio":
+        return int((v.astype(str) == str(check["value"])).sum()), len(v)
+    raise ValueError(f"unknown check type: {kind}")
 
 
 def run_check(check: dict, tables: dict[str, pd.DataFrame]) -> dict:
-    # TODO(M2) run_check: one check -> {id, severity, status, failing_rows, observed}; status pass, else
-    # warn/fail by severity. Spec: contract/feature-spec.md §2 and contract/data-contract.yaml `checks`; tests:
-    # checks.
-    raise NotImplementedError("TODO(M2) run_check: see the comment above")
+    failing, rows = failing_rows(check, tables)
+    observed = failing / rows if rows else 0.0
+    ok = observed <= check["max"] if check["type"] == "max_ratio" else failing == 0
+    status = "pass" if ok else ("fail" if check["severity"] == "error" else "warn")
+    return {
+        "id": check["id"],
+        "severity": check["severity"],
+        "status": status,
+        "failing_rows": failing,
+        "observed": observed,
+    }
 
 
 def run_checks(contract: dict, tables: dict[str, pd.DataFrame], only: set[str] | None = None) -> list[dict]:
-    # TODO(M2) run_checks: every check of contract/data-contract.yaml for the given tables, in contract order.
-    # Spec: contract/feature-spec.md §2 and contract/data-contract.yaml `checks`; tests: checks.
-    raise NotImplementedError("TODO(M2) run_checks: see the comment above")
+    return [run_check(c, tables) for c in contract["checks"] if only is None or c["table"] in only]
 
 
 def raise_on_errors(results: list[dict]) -> None:
-    # TODO(M2) raise_on_errors: a failing `error` check stops the run with a contract error (exit 3): no model
-    # is better than a model trained on a broken export. Spec: contract/feature-spec.md §2 and
-    # contract/data-contract.yaml `checks`; tests: checks.
-    raise NotImplementedError("TODO(M2) raise_on_errors: see the comment above")
+    failed = [r["id"] for r in results if r["status"] == "fail"]
+    if failed:
+        raise ContractError("contract check(s) failed: " + ", ".join(failed))

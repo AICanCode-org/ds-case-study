@@ -14,15 +14,6 @@ from churncast.load import load_raw
 # watch the tests fail (red), implement until they pass (green). See docs/phase-3.
 # ---------------------------------------------------------------------------
 PENDING: dict[str, str] = {
-    "test_load.py": "Phase 3 M1 - load the raw export as text",
-    "test_clean.py": "Phase 3 M1 - cleaning rules and the issue counts",
-    "test_checks.py": "Phase 3 M2 - data-contract checks",
-    "test_features.py": "Phase 3 M3 - point-in-time features and labels",
-    "test_model.py": "Phase 3 M4 - baselines, logistic regression, grouped folds",
-    "test_metrics.py": "Phase 3 M4 - AUC, AP, Brier, calibration, top-k by hand",
-    "test_evaluate.py": "Phase 3 M5 - evaluation tables on a mini run",
-    "test_artefact.py": "Phase 3 M5 - the model artefact and explanations",
-    "test_cli.py": "Phase 3 M5 - command line and exit codes",
     "test_golden.py": "Phase 4 - golden metrics and model on the real export",
     "test_invariants.py": "Phase 4 - invariants on the real export",
     "test_leakage.py": "Phase 4 - leakage: point-in-time and banned columns",
