@@ -2,6 +2,7 @@
 #   docker build -f tracks/sql/Dockerfile -t churncast-sql:local .
 FROM scratch AS src
 COPY contract /app/contract
+COPY models /app/models
 COPY tracks/sql/sql /app/tracks/sql/sql
 COPY tracks/sql/churncast_sql /app/tracks/sql/churncast_sql
 
@@ -15,4 +16,4 @@ COPY --from=src /app /app
 WORKDIR /app/tracks/sql
 USER 10001
 ENTRYPOINT ["python", "-m", "churncast_sql"]
-CMD ["run", "--data", "/app/data/raw/2026-05", "--out", "/out"]
+CMD ["run", "--data", "/app/data/raw/2026-07", "--out", "/out"]

@@ -1,7 +1,7 @@
 # SQL track (DuckDB). Same targets in every track: install, lint, test, coverage, run, report, gate.
 # The analysis lives in sql/*.sql; churncast_sql/ is a thin runner (variables, checks, the logistic fit, JSON).
 PY ?= .venv/bin/python
-DATA ?= ../../data/raw/2026-05
+DATA ?= ../../data/raw/2026-07
 OUT ?= out
 
 .PHONY: install lint test coverage run report gate clean

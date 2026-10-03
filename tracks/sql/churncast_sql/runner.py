@@ -24,7 +24,15 @@ TRACK_DIR = Path(__file__).resolve().parents[1]
 REPO = TRACK_DIR.parents[1]
 SQL_DIR = TRACK_DIR / "sql"
 DEFAULT_CONTRACT = REPO / "contract" / "data-contract.yaml"
-SCRIPTS = ["01_load.sql", "02_clean.sql", "03_features.sql", "04_models.sql", "05_metrics.sql", "06_evaluate.sql"]
+SCRIPTS = [
+    "01_load.sql",
+    "02_clean.sql",
+    "03_features.sql",
+    "04_models.sql",
+    "05_metrics.sql",
+    "06_evaluate.sql",
+    "07_monitoring.sql",
+]
 TABLES = ["customers", "invoices", "usage", "tickets"]
 SLICE_COLUMNS = ["city", "city_tier", "age_band", "channel", "plan", "price_inr"]
 IDENT = re.compile(r"^[a-z_][a-z0-9_]*$")
@@ -37,7 +45,18 @@ CAPACITY = [
     "lift_at_top",
     "net_value_inr_per_month",
 ]
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"  # 1.1: monitoring, retraining, monitoring_reference, lineage (all additive)
+ARTEFACT_TEST_KEYS = ["auc", "average_precision", "brier", "ece", "precision_at_top", "recall_at_top"]
+POST = ("recent", "holdout", "score")
+MONITORING_DEFAULTS = {
+    "psi_bins": 10,
+    "psi_floor": 1e-4,
+    "psi_watch": 0.10,
+    "psi_drift": 0.25,
+    "alert_max_ece": 0.03,
+    "alert_max_mean_gap": 0.02,
+    "alert_min_auc": 0.72,
+}
 EPS = 1e-15
 
 
@@ -100,11 +119,13 @@ def table(con, name: str, columns: str, rows: list) -> None:
 
 
 def snapshot_rows(contract: dict, export_month: int) -> list[tuple]:
+    """The contract snapshots the export covers. recent/holdout (1.1) also need their label month in the export."""
     rows = {}
     for split in ("train", "test", "recent", "holdout", "score"):
+        lag = 1 if split in ("recent", "holdout") else 0
         for label in contract["snapshots"].get(split, []):
             m = month_index(label)
-            if m <= export_month and m not in rows:
+            if m + lag <= export_month and m not in rows:
                 rows[m] = (m, label, split)
     return [rows[m] for m in sorted(rows)]
 
@@ -125,6 +146,22 @@ def prepare(con, data_dir: str | os.PathLike, contract: dict, export: dict) -> N
     setvar(con, "prior_id", kinds["prior"])
     setvar(con, "rule_id", kinds["rule"])
     setvar(con, "eps", EPS)
+    mon = {**MONITORING_DEFAULTS, **contract.get("monitoring", {})}
+    if int(mon["psi_bins"]) != 10:
+        raise ContractError("07_monitoring.sql computes decile edges: psi_bins must be 10")
+    rt = contract.get("retraining", {})
+    for name, value in {
+        "psi_floor": float(mon["psi_floor"]),
+        "psi_watch": float(mon["psi_watch"]),
+        "psi_drift": float(mon["psi_drift"]),
+        "alert_max_ece": float(mon["alert_max_ece"]),
+        "alert_max_mean_gap": float(mon["alert_max_mean_gap"]),
+        "alert_min_auc": float(mon["alert_min_auc"]),
+        "rt_max_auc_drop": float(rt.get("max_auc_drop", 0.005)),
+        "rt_max_ece": float(rt.get("max_ece", 0.03)),
+        "rt_max_recall_gap": float(rt.get("max_recall_gap", 0.15)),
+    }.items():
+        setvar(con, name, value)
     for name, value in {
         "top_percent": int(ev["top_percent"]),
         "calibration_bins": int(ev["calibration_bins"]),
@@ -244,6 +281,17 @@ def fit_stage(con, names: list[str], stage: str) -> dict:
     return fit_logistic(x, rows["churned"], names)
 
 
+def fit_rows(con, names: list[str], splits: list[str]) -> dict:
+    """Fit on every feature row of the given splits (the v1.1 challenger refit)."""
+    cols = ", ".join(f"f.{ident(n)}" for n in names)
+    marks = ", ".join("?" for _ in splits)
+    rows = con.execute(
+        f"SELECT {cols}, f.churned FROM features AS f WHERE f.split IN ({marks}) ORDER BY f.snapshot, f.customer_id",
+        splits,
+    ).fetchnumpy()
+    return fit_logistic(np.column_stack([rows[n] for n in names]), rows["churned"], names)
+
+
 def fit_logistic_experiments(con, contract: dict) -> dict:
     """Fit every logistic experiment on every stage and score its eval rows back into `scored`."""
     stages = [r[0] for r in con.execute("SELECT stage FROM cfg_stages ORDER BY stage").fetchall()]
@@ -264,6 +312,71 @@ def fit_logistic_experiments(con, contract: dict) -> dict:
                 [exp["id"], stage],
             )
     return fits
+
+
+def deployed_path(contract: dict) -> Path:
+    return Path(os.environ.get("DEPLOYED_MODEL_PATH") or REPO / contract["monitoring"]["deployed_model"])
+
+
+def insert_scores(con, model: str, fit: dict, splits: list[str]) -> None:
+    marks = ", ".join("?" for _ in splits)
+    con.execute(
+        f"""INSERT INTO post_scored
+            SELECT ?, f.customer_id, f.snapshot, f.split, f.churned, 1 / (1 + exp(-({score_sql(fit)})))
+            FROM features AS f WHERE f.split IN ({marks})""",
+        [model, *splits],
+    )
+
+
+def calibration_offset(con, fit: dict, split: str) -> float:
+    """Newton's method for the intercept shift d with sum(sigmoid(eta + d)) = sum(y) on one split; each step is one
+    SQL aggregate over the rows (the same iteration as glm(y ~ 1, offset = eta) in R)."""
+    d = 0.0
+    for _ in range(100):
+        grad, hess = con.execute(
+            f"""WITH s AS (SELECT f.churned AS y, 1 / (1 + exp(-({score_sql(fit)} + ?))) AS p
+                           FROM features AS f WHERE f.split = ?)
+                SELECT sum(p - y), sum(p * (1 - p)) FROM s""",
+            [d, split],
+        ).fetchone()
+        step = float(grad) / float(hess)
+        d -= step
+        if abs(step) < 1e-13:
+            break
+    return d
+
+
+def score_post_deployment(con, contract: dict, fits: dict) -> dict | None:
+    """Fill post_scored for 07_monitoring.sql. With labelled recent and holdout months (1.1): the deployed model on the
+    training and post-deployment rows, and the challenger (refit + recalibrated) on its refit, recent and holdout rows.
+    Otherwise: this run's champion on its training rows (the reference profile of its artefact)."""
+    con.execute(
+        "CREATE OR REPLACE TABLE post_scored (model VARCHAR, customer_id VARCHAR, snapshot VARCHAR, split VARCHAR, "
+        "y INTEGER, p DOUBLE)"
+    )
+    labelled = {r[0] for r in con.execute("SELECT DISTINCT split FROM features WHERE churned IS NOT NULL").fetchall()}
+    champion_id = con.execute("SELECT champion_id FROM champion").fetchone()[0]
+    used = experiment_features(next(e for e in contract["experiments"] if e["id"] == champion_id), contract)
+    if "monitoring" not in contract or not {"recent", "holdout"} <= labelled:
+        insert_scores(con, "champion", fits[(champion_id, "test")], ["train"])
+        table(con, "cfg_model_features", "model VARCHAR, name VARCHAR", [("artefact", ident(n)) for n in used])
+        table(con, "cfg_profile_splits", "split VARCHAR", [("train",)])
+        return None
+    deployed = json.loads(deployed_path(contract).read_text(encoding="utf-8"))
+    rt = contract["retraining"]
+    insert_scores(con, "champion", deployed, ["train", *POST])
+    fit = fit_rows(con, used, list(rt["refit_splits"]))
+    offset = calibration_offset(con, fit, rt["calibrate_on"])
+    challenger = {"intercept": fit["intercept"] + offset, "coefficients": fit["coefficients"]}
+    insert_scores(con, "challenger", challenger, [*rt["refit_splits"], rt["calibrate_on"], rt["decide_on"]])
+    table(
+        con,
+        "cfg_model_features",
+        "model VARCHAR, name VARCHAR",
+        [("champion", ident(n)) for n in deployed["features"]] + [("artefact", ident(n)) for n in used],
+    )
+    table(con, "cfg_profile_splits", "split VARCHAR", [(s,) for s in rt["refit_splits"]])
+    return {"deployed": deployed, "challenger": challenger, "offset": offset, "features": used}
 
 
 def rows_of(con, sql: str, params: list | None = None) -> list[dict]:
@@ -301,7 +414,9 @@ def analyse(con, data_dir: str | os.PathLike, contract: dict) -> dict:
     fits = fit_logistic_experiments(con, contract)
     run_script(con, "05_metrics.sql")
     run_script(con, "06_evaluate.sql")
-    return assemble(con, contract, export, checks, fits)
+    post = score_post_deployment(con, contract, fits)
+    run_script(con, "07_monitoring.sql")
+    return assemble(con, contract, export, checks, fits, post)
 
 
 def experiment_block(con, exp: dict, contract: dict) -> dict:
@@ -327,7 +442,123 @@ def experiment_block(con, exp: dict, contract: dict) -> dict:
     }
 
 
-def assemble(con, contract: dict, export: dict, checks: list[dict], fits: dict) -> dict:
+def profile_of(con, edges: str, shares: str, features: list[str]) -> dict:
+    """Edges and shares per variable from 07_monitoring.sql, in the artefact's feature order."""
+    e, sh = {}, {}
+    for var, edge in con.execute(f"SELECT var, edge FROM {ident(edges)} ORDER BY var, edge").fetchall():
+        e.setdefault(var, []).append(float(edge))
+    for var, share in con.execute(f"SELECT var, share FROM {ident(shares)} ORDER BY var, bin").fetchall():
+        sh.setdefault(var, []).append(float(share))
+    return {v: {"edges": e.get(v, []), "shares": sh[v]} for v in [*features, "__score__"]}
+
+
+def monitoring_section(con, contract: dict, post: dict) -> dict:
+    mon = contract["monitoring"]
+    names = post["deployed"]["features"]
+    drift_rows = rows_of(con, "SELECT snapshot, var, psi, status FROM drift_status")
+    by = {(r["snapshot"], r["var"]): r for r in drift_rows}
+    counts = rows_of(
+        con,
+        "SELECT snapshot, any_value(split) AS split, count(*) AS rows FROM post_scored "
+        "WHERE model = 'champion' AND split <> 'train' GROUP BY snapshot ORDER BY snapshot",
+    )
+    perf = {r["snapshot"]: r for r in rows_of(con, "SELECT * FROM monitor_performance")}
+    drift, performance, alerts = [], [], []
+    for c in counts:
+        snap = c["snapshot"]
+        per = {f: float(by[(snap, f)]["psi"]) for f in names}
+        status = {f: by[(snap, f)]["status"] for f in names}
+        score = by[(snap, "__score__")]
+        drift.append(
+            {
+                "snapshot": snap,
+                "split": c["split"],
+                "rows": int(c["rows"]),
+                "score_psi": float(score["psi"]),
+                "score_status": score["status"],
+                "feature_psi": per,
+                "features_watch": [f for f in names if status[f] == "watch"],
+                "features_drift": [f for f in names if status[f] == "drift"],
+            }
+        )
+        alerts += [f"{snap}: {f} drifted (PSI {per[f]:.3f})" for f in drift[-1]["features_drift"]]
+        if snap in perf:
+            m = perf[snap]
+            own = []
+            if m["alert_ece"]:
+                own.append(f"ECE {m['ece']:.3f} > {mon['alert_max_ece']}")
+            if m["alert_mean_gap"]:
+                own.append(f"mean predicted {m['mean_pred']:.3f} vs observed {m['observed_rate']:.3f}")
+            if m["alert_auc"]:
+                own.append(f"AUC {m['auc']:.3f} < {mon['alert_min_auc']}")
+            performance.append(
+                {
+                    "snapshot": snap,
+                    "split": c["split"],
+                    "rows": int(m["rows"]),
+                    **{k: float(m[k]) for k in ("auc", "brier", "ece", "mean_pred", "observed_rate")},
+                    "alerts": own,
+                }
+            )
+            alerts += [f"{snap}: {a}" for a in own]
+    ref_rows = con.execute("SELECT count(*) FROM post_scored WHERE model = 'champion' AND split = 'train'").fetchone()
+    return {
+        "deployed_model": {
+            "path": mon["deployed_model"],
+            "model_version": post["deployed"]["model_version"],
+            "trained_by_track": post["deployed"]["generator"]["track"],
+        },
+        "reference": {"split": "train", "rows": int(ref_rows[0])},
+        "drift": drift,
+        "performance": performance,
+        "alerts": alerts,
+        "status": "retrain" if any(r["alerts"] for r in performance) else ("watch" if alerts else "ok"),
+    }
+
+
+def retraining_section(con, contract: dict, post: dict) -> dict:
+    rt = contract["retraining"]
+    one = lambda sql, p=None: con.execute(sql, p or []).fetchone()  # noqa: E731
+    marks = ", ".join("?" for _ in rt["refit_splits"])
+    refit_snaps = [
+        r[0]
+        for r in con.execute(
+            f"SELECT DISTINCT snapshot FROM features WHERE split IN ({marks}) ORDER BY snapshot", rt["refit_splits"]
+        ).fetchall()
+    ]
+    refit_rows = one(f"SELECT count(*) FROM features WHERE split IN ({marks})", rt["refit_splits"])[0]
+    calib = one("SELECT min(snapshot) FROM features WHERE split = ?", [rt["calibrate_on"]])[0]
+    hold = rows_of(
+        con,
+        "SELECT min(snapshot) AS snapshot, count(*) AS rows, avg(churned) AS churn_rate FROM features WHERE split = ?",
+        [rt["decide_on"]],
+    )[0]
+    metrics = {r.pop("model"): r for r in rows_of(con, "SELECT * EXCLUDE (rows) FROM holdout_metrics")}
+    checks = [
+        {"id": r["id"], "value": float(r["value"]), "threshold": float(r["threshold"]), "passed": bool(r["passed"])}
+        for r in rows_of(con, "SELECT id, value, threshold, passed FROM retraining_gate ORDER BY pos")
+    ]
+    passed = all(c["passed"] for c in checks)
+    ch = post["challenger"]
+    return {
+        "challenger": {
+            "features": post["features"],
+            "refit_snapshots": refit_snaps,
+            "refit_rows": int(refit_rows),
+            "calibration_snapshot": calib,
+            "calibration_offset": post["offset"],
+            "intercept": ch["intercept"],
+            "coefficients": ch["coefficients"],
+        },
+        "holdout": {"snapshot": hold["snapshot"], "rows": int(hold["rows"]), "churn_rate": float(hold["churn_rate"])},
+        "champion_holdout": {k: num(v) for k, v in metrics["champion"].items()},
+        "challenger_holdout": {k: num(v) for k, v in metrics["challenger"].items()},
+        "gate": {"checks": checks, "passed": passed},
+        "decision": "promote" if passed else "keep",
+    }
+
+
+def assemble(con, contract: dict, export: dict, checks: list[dict], fits: dict, post: dict | None = None) -> dict:
     names = feature_names(contract)
     one = lambda sql, p=None: con.execute(sql, p or []).fetchone()  # noqa: E731
     issues = {r["issue"]: int(r["n"]) for r in rows_of(con, "SELECT issue, n FROM issues ORDER BY pos")}
@@ -458,10 +689,65 @@ def assemble(con, contract: dict, export: dict, checks: list[dict], fits: dict) 
         "high_risk_threshold": float(threshold),
         "base_rate": float(split["train_churn_rate"]),
         "training": training,
-        "test_metrics": {
-            k: test_m[k] for k in ("auc", "average_precision", "brier", "ece", "precision_at_top", "recall_at_top")
-        },
+        "test_metrics": {k: test_m[k] for k in ARTEFACT_TEST_KEYS},
+        "monitoring_reference": None,
+        "lineage": {"parent_model_version": None, "trained_on": contract["snapshots"]["train"]},
         "generator": {"track": TRACK, "version": __version__},
+    }
+    sections = {}
+    if post is not None:
+        sections["monitoring"] = monitoring_section(con, contract, post)
+        sections["retraining"] = rt = retraining_section(con, contract, post)
+        c = rt["challenger"]
+        rtc = contract["retraining"]
+        marks = ", ".join("?" for _ in rtc["refit_splits"])
+        refit_means = {
+            r["feature"]: float(r["mean"])
+            for r in rows_of(
+                con,
+                f"SELECT feature, avg(value) AS mean FROM feature_long WHERE split IN ({marks}) GROUP BY feature",
+                rtc["refit_splits"],
+            )
+        }
+        recent = rows_of(
+            con,
+            "SELECT quantile_cont(p, 0.9) AS threshold, avg(y) AS base_rate FROM post_scored "
+            "WHERE model = 'challenger' AND split = ?",
+            [rtc["calibrate_on"]],
+        )[0]
+        churners = one(f"SELECT sum(churned) FROM features WHERE split IN ({marks})", rtc["refit_splits"])[0]
+        artefact.update(
+            {
+                "intercept": c["intercept"],
+                "coefficients": {f: c["coefficients"][f] for f in used},
+                "feature_means": {f: refit_means[f] for f in used},
+                "high_risk_threshold": float(recent["threshold"]),
+                "base_rate": float(recent["base_rate"]),
+                "training": {
+                    "export": export["export"],
+                    "contract_version": contract["contract_version"],
+                    "snapshots": c["refit_snapshots"],
+                    "rows": c["refit_rows"],
+                    "churners": int(churners),
+                },
+                "test_metrics": {k: rt["challenger_holdout"][k] for k in ARTEFACT_TEST_KEYS},
+                "lineage": {
+                    "parent_model_version": post["deployed"]["model_version"],
+                    "refit_snapshots": c["refit_snapshots"],
+                    "calibration_snapshot": c["calibration_snapshot"],
+                    "calibration_offset": c["calibration_offset"],
+                    "decided_on": rt["holdout"]["snapshot"],
+                    "decision": rt["decision"],
+                },
+            }
+        )
+    prof = profile_of(con, "profile_edges", "profile_shares", used)
+    n_profile = one("SELECT count(*) FROM profile_values WHERE var = '__score__'")[0]
+    artefact["monitoring_reference"] = {
+        "bins": 10,
+        "rows": int(n_profile),
+        "features": {f: prof[f] for f in used},
+        "score": prof["__score__"],
     }
     metrics = {
         "schema_version": SCHEMA_VERSION,
@@ -500,6 +786,7 @@ def assemble(con, contract: dict, export: dict, checks: list[dict], fits: dict) 
         "slices": slices,
         "fairness": fairness,
         "gate": gate,
+        **sections,
     }
     return {"metrics": metrics, "artefact": artefact}
 

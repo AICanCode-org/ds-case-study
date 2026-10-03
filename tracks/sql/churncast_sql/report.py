@@ -34,6 +34,30 @@ SECTIONS = [
     ("Leakage scan (training rows)", "SELECT kind, name, round(auc, 4) AS auc FROM leakage ORDER BY auc DESC"),
     ("Gate", "SELECT id, round(value, 4) AS value, round(threshold, 4) AS threshold, passed FROM gate ORDER BY pos"),
 ]
+MONITORING = [
+    (
+        "Monitoring: PSI per feature",
+        "PIVOT (SELECT d.snapshot, d.var, round(d.psi, 3) AS psi FROM drift AS d) ON snapshot USING any_value(psi) "
+        "ORDER BY var",
+    ),
+    (
+        "Monitoring: realised performance of the deployed model",
+        "SELECT snapshot, rows, round(auc, 4) AS auc, round(brier, 4) AS brier, round(ece, 4) AS ece, "
+        "round(mean_pred, 4) AS mean_pred, round(observed_rate, 4) AS observed, alert_ece, alert_mean_gap, alert_auc "
+        "FROM monitor_performance ORDER BY snapshot",
+    ),
+    (
+        "Champion vs challenger (holdout)",
+        "SELECT model, round(auc, 4) AS auc, round(brier, 4) AS brier, round(ece, 4) AS ece, "
+        "round(mean_pred, 4) AS mean_pred, round(observed_rate, 4) AS observed, round(recall_gap, 4) AS recall_gap "
+        "FROM holdout_metrics ORDER BY model",
+    ),
+    (
+        "Retraining gate",
+        "SELECT id, round(value, 4) AS value, round(threshold, 4) AS threshold, passed "
+        "FROM retraining_gate ORDER BY pos",
+    ),
+]
 
 
 def markdown_table(cols: list[str], rows: list[tuple]) -> str:
@@ -53,7 +77,14 @@ def write_report(con, result: dict, path: Path) -> None:
         f"Champion **{m['champion']['experiment']}** ({m['champion']['reason']}); gate "
         f"**{'PASSED' if m['gate']['passed'] else 'FAILED'}**.",
     ]
-    for title, sql in SECTIONS:
+    sections = SECTIONS + (MONITORING if "monitoring" in m else [])
+    if "retraining" in m:
+        parts += [
+            "",
+            f"Monitoring status **{m['monitoring']['status']}**; "
+            f"retraining decision **{m['retraining']['decision']}**.",
+        ]
+    for title, sql in sections:
         cur = con.execute(sql)
         cols = [d[0] for d in cur.description]
         parts += ["", f"## {title}", "", markdown_table(cols, cur.fetchall())]
