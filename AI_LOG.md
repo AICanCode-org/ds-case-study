@@ -68,3 +68,27 @@ Ollama model, ...) produced something you kept, changed or rejected.
 * **How I verified it:** reasoning from `feature-spec.md` §3, then later the invariant `customers_in_two_folds == 0`.
 * **Time saved / lost (honest guess):** neutral.
 * **What I learned:** an assistant optimises for "more data"; the plan must optimise for an honest estimate.
+
+### 2026-06-09 · Phase 3 · A ticket from the future
+* **Tool / model:** Copilot in VS Code
+* **Prompt (summary or paste):**
+  > Prompt 1 of Phase 3: implement `open_tickets` for snapshot M (spec §4).
+* **What it produced:** "tickets where `resolved_at` is blank", without any cut-off.
+* **What I kept / changed / rejected, and why:** rejected. A ticket resolved in M + 1 was open at the cut-off, and a
+  ticket created in M + 1 must be invisible; the suggestion got both wrong (it used the export's final state).
+  Wrote `created < S and (resolved is missing or resolved >= S)`.
+* **How I verified it:** `test_a_ticket_after_the_snapshot_is_invisible` and the tiny fixture's expected features,
+  both red with the suggestion.
+* **Time saved / lost (honest guess):** lost ~15 minutes, gained the clearest example of leakage I have.
+* **What I learned:** "the current state of the table" is the future from the snapshot's point of view.
+
+### 2026-06-11 · Phase 3 · scikit-learn's default logistic regression
+* **Tool / model:** ChatGPT (free tier)
+* **Prompt (summary or paste):**
+  > Fit a logistic regression on these 15 features and return intercept and coefficients.
+* **What it produced:** `LogisticRegression(max_iter=1000).fit(X, y)`.
+* **What I kept / changed / rejected, and why:** changed to `C=math.inf, solver="newton-cholesky", tol=1e-12`. The
+  default is L2-penalised with C=1: a different model, whose coefficients matched neither the golden file nor R's glm.
+* **How I verified it:** `parity.py` against `contract/golden/model-2026-05.json` (MATCH after the change).
+* **Time saved / lost (honest guess):** saved ~10 minutes of typing, lost 20 finding the penalty.
+* **What I learned:** library defaults are modelling decisions; read them.
