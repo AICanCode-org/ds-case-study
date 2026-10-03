@@ -43,3 +43,16 @@ Ollama model, ...) produced something you kept, changed or rejected.
 * **How I verified it:** `scripts/doctor.sh` shows the image; `make lint test` inside it (all skipped); CI's R job green.
 * **Time saved / lost (honest guess):** saved ~20 minutes.
 * **What I learned:** the project's pinned toolchain is the source of truth, not a generic install answer.
+
+### 2026-06-03 · Phase 1 · Challenging the label definition
+* **Tool / model:** ChatGPT (free tier)
+* **Prompt (summary or paste):**
+  > Prompt 1 of Phase 1: list every way "no paid charge for M+1" could be a wrong churn label.
+* **What it produced:** eight cases: pauses, failed-then-retried payments, refunds, win-backs, annual plans, the
+  last month of the export, plan changes, duplicate invoices.
+* **What I kept / changed / rejected, and why:** kept failed payments, refunds, duplicates and the last month (all
+  visible in the data and now acceptance criteria); rejected pauses and annual plans: the export has neither, and
+  inventing them would have added untestable rules.
+* **How I verified it:** `grep`/counts on `invoices.csv` (`kind`, `status` values), and `feature-spec.md` §3.
+* **Time saved / lost (honest guess):** saved ~30 minutes of thinking, lost 10 checking invented fields.
+* **What I learned:** a label is a business definition; test only the cases the data can contain.
