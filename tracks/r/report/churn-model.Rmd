@@ -20,64 +20,78 @@ pct <- function(x) sprintf("%.1f %%", 100 * x)
 
 ## 1. The question
 
-TODO: the evidence and the caveat.
-
-```{r 1-the-question}
-# TODO (Phase 3)
-```
+Every month the retention team can call **10 %** of active subscribers with an offer. ChurnCast ranks them by the
+probability that they will not pay next month. Export **`r m$dataset$export`**, contract
+**`r m$dataset$contract_version`**.
 
 ## 2. Data quality: what cleaning changed
 
-TODO: the evidence and the caveat.
-
-```{r 2-data-quality-what-cleaning-c}
-# TODO (Phase 3)
+```{r issues}
+knitr::kable(data.frame(issue = names(m$data_quality$issues), rows = unlist(m$data_quality$issues)), row.names = FALSE)
 ```
 
 ## 3. Churn per snapshot (train = grey, out-of-time test = red)
 
-TODO: the evidence and the caveat.
-
-```{r 3-churn-per-snapshot-train-gre}
-# TODO (Phase 3)
+```{r snapshots}
+s <- do.call(rbind, lapply(m$snapshots, as.data.frame))
+ggplot(s, aes(snapshot, churn_rate, fill = split)) + geom_col() +
+  scale_fill_manual(values = c(train = "#9aa5b1", test = "#d64545")) +
+  scale_y_continuous(labels = scales::percent) + labs(x = NULL, y = "churn next month")
 ```
+
+Train rows **`r m$split$train_rows`** (churn `r pct(m$split$train_churn_rate)`), test rows **`r m$split$test_rows`**
+(churn `r pct(m$split$test_churn_rate)`). Customers in two folds: **`r m$split$customers_in_two_folds`**.
 
 ## 4. Experiments: grouped 5-fold cross-validation, then the test months once
 
-TODO: the evidence and the caveat.
-
-```{r 4-experiments-grouped-5-fold-c}
-# TODO (Phase 3)
+```{r experiments}
+e <- do.call(rbind, lapply(m$experiments, function(x) data.frame(
+  id = x$id, name = x$name, cv_auc = round(x$cv$auc_mean, 4), cv_sd = round(x$cv$auc_sd, 4),
+  test_auc = round(x$test$auc, 4), test_brier = round(x$test$brier, 4),
+  precision_top10 = round(x$test$precision_at_top, 3), net_inr_month = round(x$test$net_value_inr_per_month)
+)))
+knitr::kable(e, row.names = FALSE)
 ```
+
+Champion: **`r m$champion$experiment`**: `r m$champion$reason`.
 
 ## 5. What drives the score (standardised coefficients)
 
-TODO: the evidence and the caveat.
-
-```{r 5-what-drives-the-score-standa}
-# TODO (Phase 3)
+```{r importance}
+imp <- do.call(rbind, lapply(m$champion$importance, as.data.frame))
+imp$feature <- factor(imp$feature, levels = rev(imp$feature))
+ggplot(imp, aes(standardised, feature)) + geom_col(fill = "#3b6ea8") + labs(x = "log-odds per SD", y = NULL)
 ```
 
 ## 6. Calibration on the test months
 
-TODO: the evidence and the caveat.
-
-```{r 6-calibration-on-the-test-mont}
-# TODO (Phase 3)
+```{r calibration, fig.width = 4.5, fig.height = 4.5}
+b <- do.call(rbind, lapply(Filter(function(x) x$n > 0, m$calibration$bins), as.data.frame))
+ggplot(b, aes(mean_pred, observed)) + geom_abline(linetype = "dashed", colour = "#9aa5b1") +
+  geom_point(aes(size = n), colour = "#d64545") + coord_equal(xlim = c(0, 0.6), ylim = c(0, 0.6)) +
+  labs(x = "mean predicted", y = "observed churn")
 ```
+
+ECE **`r round(m$calibration$ece, 4)`** (gate: at most `r load_contract()$gate$max_ece`).
 
 ## 7. Slices and fairness
 
-TODO: the evidence and the caveat.
-
-```{r 7-slices-and-fairness}
-# TODO (Phase 3)
+```{r slices}
+for (dim in names(m$slices)) {
+  rows <- do.call(rbind, lapply(m$slices[[dim]], function(r) {
+    data.frame(value = r$value, n = r$n, churn_rate = round(r$churn_rate, 3), mean_pred = round(r$mean_pred, 3),
+               auc = if (is.null(r$auc)) NA else round(r$auc, 3), recall_top10 = round(r$recall_at_top, 3))
+  }))
+  print(knitr::kable(rows, caption = dim, row.names = FALSE))
+}
 ```
+
+Recall gap across age bands: **`r round(m$fairness$recall_gap, 3)`** (max `r m$fairness$max_recall_gap`).
 
 ## 8. The gate
 
-TODO: the evidence and the caveat.
-
-```{r 8-the-gate}
-# TODO (Phase 3)
+```{r gate}
+knitr::kable(do.call(rbind, lapply(m$gate$checks, as.data.frame)), digits = 4, row.names = FALSE)
 ```
+
+Gate: **`r if (m$gate$passed) "PASSED" else "FAILED"`**.

@@ -5,70 +5,69 @@
 # tightened (epsilon 1e-12) so the coefficients agree to far better than the parity tolerance.
 
 logistic_spec <- function() {
-  # TODO(M4) logistic_spec: parsnip::logistic_reg() with the glm engine; tighten glm.control(epsilon). Spec:
-  # contract/feature-spec.md §5; tests: model.
-  stop("TODO(M4) logistic_spec: see the comment above")
+  parsnip::logistic_reg() |>
+    parsnip::set_engine("glm", control = stats::glm.control(epsilon = 1e-12, maxit = 100))
 }
 
 #' The outcome as a factor with the event ("1" = churned) as the SECOND level: glm models P(second level).
 as_outcome <- function(y) factor(y, levels = c(0L, 1L))
 
 fit_logistic <- function(x, y) {
-  # TODO(M4) fit_logistic: unpenalised maximum-likelihood logistic regression (no regularisation: the contract
-  # compares tracks to 1e-6, and every library's default penalty differs). Spec: contract/feature-spec.md §5;
-  # tests: model.
-  stop("TODO(M4) fit_logistic: see the comment above")
+  data <- x
+  data$churned <- as_outcome(y)
+  wf <- workflows::workflow() |>
+    workflows::add_formula(churned ~ .) |>
+    workflows::add_model(logistic_spec())
+  fitted <- parsnip::fit(wf, data = data)
+  engine <- workflows::extract_fit_engine(fitted)
+  if (!engine$converged) stop("glm did not converge")
+  beta <- stats::coef(engine)
+  list(intercept = unname(beta[["(Intercept)"]]),
+       coefficients = as.list(beta[names(x)]),
+       workflow = fitted)
 }
 
 #' intercept + b1 * x1 + b2 * x2 + ..., added up in feature order, one element at a time. Not %*%: BLAS kernels may
 #' add up rows in different orders (blocks, FMA), so two identical rows could score a last bit apart and break a tie.
 linear_predictor <- function(fit, x) {
-  # TODO(M4) linear_predictor: intercept + b1 * x1 + b2 * x2 + ... added feature by feature, NOT a matrix
-  # product: BLAS kernels add rows in different orders, so two identical customers could score an ulp apart and
-  # break a tie. Spec: contract/feature-spec.md §5; tests: model.
-  stop("TODO(M4) linear_predictor: see the comment above")
+  eta <- rep(fit$intercept, nrow(x))
+  for (f in names(fit$coefficients)) eta <- eta + fit$coefficients[[f]] * as.numeric(x[[f]])
+  eta
 }
 
-predict_logistic <- function(fit, x) {
-  # TODO(M4) predict_logistic: the logistic of the linear predictor. Spec: contract/feature-spec.md §5; tests:
-  # model.
-  stop("TODO(M4) predict_logistic: see the comment above")
-}
+predict_logistic <- function(fit, x) 1 / (1 + exp(-linear_predictor(fit, x)))
 
 #' B1: one point per risk flag of the contract's rule_baseline.
 rule_score <- function(x, rules) {
-  # TODO(M4) rule_score: B1: one point per risk flag of the contract's rule_baseline. Spec:
-  # contract/feature-spec.md §5; tests: model.
-  stop("TODO(M4) rule_score: see the comment above")
+  score <- integer(nrow(x))
+  for (r in rules) {
+    v <- as.numeric(x[[r$feature]])
+    score <- score + as.integer(if (r$op == ">=") v >= r$value else v <= r$value)
+  }
+  score
 }
 
 #' The churn rate of the training rows for each flag count (a lookup table), the overall rate for unseen counts.
 fit_rule <- function(x, y, rules) {
-  # TODO(M4) fit_rule: the training churn rate for each flag count; the overall rate for a count never seen in
-  # training. Spec: contract/feature-spec.md §5; tests: model.
-  stop("TODO(M4) fit_rule: see the comment above")
+  score <- rule_score(x, rules)
+  rates <- tapply(as.numeric(y), score, mean)
+  list(rates = stats::setNames(as.numeric(rates), names(rates)), default = mean(as.numeric(y)))
 }
 
 predict_rule <- function(fit, x, rules) {
-  # TODO(M4) predict_rule: look up the rate of each row's flag count. Spec: contract/feature-spec.md §5; tests:
-  # model.
-  stop("TODO(M4) predict_rule: see the comment above")
+  key <- as.character(rule_score(x, rules))
+  p <- unname(fit$rates[key])
+  ifelse(is.na(p), fit$default, p)
 }
 
-fit_prior <- function(y) {
-  # TODO(M4) fit_prior: B0: the training churn rate. Spec: contract/feature-spec.md §5; tests: model.
-  stop("TODO(M4) fit_prior: see the comment above")
-}
+fit_prior <- function(y) list(rate = mean(as.numeric(y)))
 
-predict_prior <- function(fit, x) {
-  # TODO(M4) predict_prior: everyone gets the training churn rate (AUC exactly 0.5). Spec:
-  # contract/feature-spec.md §5; tests: model.
-  stop("TODO(M4) predict_prior: see the comment above")
-}
+predict_prior <- function(fit, x) rep(fit$rate, nrow(x))
 
 #' The contract's grouped folds (customer number mod 5) as an rsample rset: a customer never sits in two folds.
 contract_folds <- function(train, folds) {
-  # TODO(M4) contract_folds: an rsample manual_rset from the contract's folds (never vfold_cv: it would split
-  # customers). Spec: contract/feature-spec.md §5; tests: model.
-  stop("TODO(M4) contract_folds: see the comment above")
+  splits <- lapply(seq_len(folds) - 1L, function(k) {
+    rsample::make_splits(list(analysis = which(train$fold != k), assessment = which(train$fold == k)), data = train)
+  })
+  rsample::manual_rset(splits, ids = paste0("Fold", seq_len(folds) - 1L))
 }

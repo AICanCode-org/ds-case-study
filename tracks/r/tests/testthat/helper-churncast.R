@@ -4,14 +4,6 @@
 # implement until they pass (green). See docs/phase-3.
 # ---------------------------------------------------------------------------
 PENDING <- c(
-  "test-unit-load.R" = "Phase 3 M1 - load the raw export as text",
-  "test-unit-clean.R" = "Phase 3 M1 - cleaning rules and the issue counts",
-  "test-unit-checks.R" = "Phase 3 M2 - data-contract checks",
-  "test-unit-features.R" = "Phase 3 M3 - point-in-time features and labels",
-  "test-unit-model.R" = "Phase 3 M4 - baselines, logistic regression, grouped folds",
-  "test-unit-metrics.R" = "Phase 3 M4 - AUC, AP, Brier, calibration, top-k by hand",
-  "test-unit-artefact.R" = "Phase 3 M5 - the model artefact and explanations",
-  "test-unit-cli.R" = "Phase 3 M5 - command line and exit codes",
   "test-data-golden.R" = "Phase 4 - golden metrics and model on the real export",
   "test-data-invariants.R" = "Phase 4 - invariants on the real export",
   "test-data-leakage.R" = "Phase 4 - leakage: point-in-time and banned columns",

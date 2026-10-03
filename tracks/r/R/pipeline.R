@@ -9,43 +9,156 @@ TRACK <- "r"
 VERSION <- "1.0.0"
 
 experiment_features <- function(exp, contract) {
-  # TODO(M5) experiment_features: the features of a logistic experiment (core or all); none for the baselines.
-  # Spec: contract/feature-spec.md §5-§7 and contract/metrics.schema.json; tests: cli.
-  stop("TODO(M5) experiment_features: see the comment above")
+  if (exp$kind != "logistic") return(character(0))
+  feature_names(contract, core_only = exp$features == "core")
 }
 
 fit_experiment <- function(exp, contract, rows) {
-  # TODO(M5) fit_experiment: fit one experiment (prior, rule or logistic) on some rows. Spec:
-  # contract/feature-spec.md §5-§7 and contract/metrics.schema.json; tests: cli.
-  stop("TODO(M5) fit_experiment: see the comment above")
+  y <- as.integer(rows$churned)
+  switch(exp$kind,
+    prior = fit_prior(y),
+    rule = fit_rule(rows, y, contract$rule_baseline),
+    logistic = fit_logistic(rows[experiment_features(exp, contract)], y)
+  )
 }
 
 predict_experiment <- function(exp, contract, fit, rows) {
-  # TODO(M5) predict_experiment: predict one fitted experiment on some rows. Spec: contract/feature-spec.md
-  # §5-§7 and contract/metrics.schema.json; tests: cli.
-  stop("TODO(M5) predict_experiment: see the comment above")
+  switch(exp$kind,
+    prior = predict_prior(fit, rows),
+    rule = predict_rule(fit, rows, contract$rule_baseline),
+    logistic = predict_logistic(fit, rows)
+  )
 }
 
 #' 5-fold grouped cross-validation over the contract folds (an rsample manual_rset).
 cross_validate <- function(exp, contract, train) {
-  # TODO(M5) cross_validate: 5-fold grouped CV on the training rows: fit on the other folds, score the held-out
-  # fold; mean and sample SD of the fold AUCs. Spec: contract/feature-spec.md §5-§7 and
-  # contract/metrics.schema.json; tests: cli.
-  stop("TODO(M5) cross_validate: see the comment above")
+  rset <- contract_folds(train, contract$snapshots$folds)
+  folds <- lapply(seq_along(rset$splits), function(i) {
+    split <- rset$splits[[i]]
+    fit_rows <- rsample::analysis(split)
+    val <- rsample::assessment(split)
+    p <- predict_experiment(exp, contract, fit_experiment(exp, contract, fit_rows), val)
+    y <- as.integer(val$churned)
+    list(fold = i - 1L, rows = nrow(val), auc = auc(y, p), brier = brier(y, p), log_loss = log_loss(y, p))
+  })
+  a <- vapply(folds, function(f) f$auc, numeric(1))
+  list(auc_mean = mean(a), auc_sd = stats::sd(a),
+       brier_mean = mean(vapply(folds, function(f) f$brier, numeric(1))),
+       log_loss_mean = mean(vapply(folds, function(f) f$log_loss, numeric(1))),
+       folds = folds)
 }
 
 choose_champion <- function(experiments, contract) {
-  # TODO(M5) choose_champion: the bigger logistic experiment only if its mean CV AUC beats the simpler one by
-  # the contract's margin; the reason in words. Spec: contract/feature-spec.md §5-§7 and
-  # contract/metrics.schema.json; tests: cli.
-  stop("TODO(M5) choose_champion: see the comment above")
+  logistic <- Filter(function(e) e$kind == "logistic", experiments)
+  simple <- logistic[[1]]
+  bigger <- logistic[[length(logistic)]]
+  gain <- bigger$cv$auc_mean - simple$cv$auc_mean
+  need <- contract$champion$min_cv_auc_gain_for_complexity
+  if (gain >= need) {
+    return(list(id = bigger$id, reason = sprintf("%s beats %s by %.4f mean CV AUC (>= %s)", bigger$id, simple$id,
+                                                  gain, format(need))))
+  }
+  list(id = simple$id, reason = sprintf("%s gains only %.4f mean CV AUC (< %s): keep the simpler %s", bigger$id, gain,
+                                        format(need), simple$id))
 }
 
 analyse <- function(data_dir, contract = load_contract()) {
-  # TODO(M5) analyse: the whole run: load, clean, checks, features, experiments (CV, then the test months once),
-  # champion, evaluation, gate, artefact. Returns metrics, artefact and features. Spec: contract/feature-spec.md
-  # §5-§7 and contract/metrics.schema.json; tests: cli.
-  stop("TODO(M5) analyse: see the comment above")
+  export <- load_export(data_dir)
+  raw <- load_raw(data_dir, contract)
+  cleaned <- clean_tables(raw, contract)
+  tables <- cleaned$tables
+  checks <- run_checks(contract, c(tables, list(raw_usage = raw$usage)),
+                       only = c("customers", "invoices", "usage", "tickets", "raw_usage"))
+  raise_on_errors(checks)
+  export_month <- month_index(export$export)
+  features <- build_features(tables, contract, export_month)
+  summary <- snapshot_summary(features)
+  snap_table <- data.frame(rows = vapply(summary, function(s) s$rows, numeric(1)),
+                           churn_rate = vapply(summary, function(s) if (is.null(s$churn_rate)) NA else s$churn_rate,
+                                               numeric(1)))
+  snap_checks <- run_checks(contract, list(snapshots = snap_table), only = "snapshots")
+  checks <- c(checks, snap_checks)
+  raise_on_errors(snap_checks)
+  names <- feature_names(contract)
+  ev <- contract$evaluation
+  train <- features[features$split == "train", , drop = FALSE]
+  test <- features[features$split == "test", , drop = FALSE]
+  rownames(train) <- NULL
+  rownames(test) <- NULL
+  y_test <- as.integer(test$churned)
+
+  experiments <- list()
+  fits <- list()
+  preds <- list()
+  for (exp in contract$experiments) {
+    cv <- cross_validate(exp, contract, train)
+    fits[[exp$id]] <- fit_experiment(exp, contract, train)
+    preds[[exp$id]] <- predict_experiment(exp, contract, fits[[exp$id]], test)
+    experiments[[length(experiments) + 1]] <- list(
+      id = exp$id, name = exp$name, kind = exp$kind, features = as.list(experiment_features(exp, contract)),
+      cv = cv, test = score_metrics(test, y_test, preds[[exp$id]], ev)
+    )
+  }
+  champion <- choose_champion(experiments, contract)
+  champ <- Filter(function(e) e$id == champion$id, experiments)[[1]]
+  fit <- fits[[champion$id]]
+  p <- preds[[champion$id]]
+  used <- unlist(champ$features)
+  means <- lapply(stats::setNames(used, used), function(f) mean(train[[f]]))
+  sds <- lapply(stats::setNames(used, used), function(f) sqrt(mean((train[[f]] - mean(train[[f]]))^2)))
+  threshold <- quantile7(predict_logistic(fit, train), 0.9)
+  test_m <- champ$test
+  slice_rows <- slices(test, y_test, p, ev)
+  fair <- fairness(slice_rows, ev, contract$cleaning$missing_label)
+  reasons <- tables$customers$cancellation_reason[match(train$customer_id, tables$customers$customer_id)]
+  probe <- as.integer(!is.na(reasons) & trimws(reasons) != "")
+  leak <- leakage_scan(train, names, probe, ev$leakage_max_single_feature_auc)
+  by_id <- stats::setNames(lapply(experiments, function(e) e$test), vapply(experiments, function(e) e$id, ""))
+  verdict <- gate(test_m, by_id$B1, by_id$B0, fair, leak, contract$gate)
+  training <- list(export = export$export, contract_version = contract$contract_version,
+                   snapshots = as.list(unlist(contract$snapshots$train)), rows = nrow(train),
+                   churners = sum(train$churned))
+  artefact <- build_artefact(fit, champion$id, used, means, threshold, mean(train$churned), training,
+                             test_m[c("auc", "average_precision", "brier", "ece", "precision_at_top",
+                                      "recall_at_top")], VERSION, TRACK)
+  importance <- lapply(used, function(f) {
+    list(feature = f, coefficient = fit$coefficients[[f]], sd = sds[[f]],
+         standardised = fit$coefficients[[f]] * sds[[f]])
+  })
+  importance <- importance[order(-vapply(importance, function(r) abs(r$standardised), numeric(1)))]
+  fold_ids <- seq_len(contract$snapshots$folds) - 1L
+  metrics <- list(
+    schema_version = "1.0",
+    generator = list(track = TRACK, version = VERSION),
+    dataset = list(export = export$export, period_end = export$period_end,
+                   contract_version = contract$contract_version),
+    data_quality = list(raw_rows = lapply(raw, nrow), clean_rows = lapply(tables, nrow), issues = cleaned$issues,
+                        checks = checks),
+    snapshots = summary,
+    split = list(
+      train_snapshots = as.list(unlist(contract$snapshots$train)),
+      test_snapshots = as.list(unlist(contract$snapshots$test)),
+      train_rows = nrow(train), test_rows = nrow(test),
+      train_churn_rate = mean(train$churned), test_churn_rate = mean(y_test),
+      folds = lapply(fold_ids, function(k) {
+        m <- train$fold == k
+        list(fold = k, rows = sum(m), customers = length(unique(train$customer_id[m])),
+             churners = sum(train$churned[m]))
+      }),
+      customers_in_two_folds = sum(tapply(train$fold, train$customer_id, function(f) length(unique(f))) > 1)
+    ),
+    leakage = leak,
+    experiments = experiments,
+    champion = list(experiment = champion$id, reason = champion$reason, features = as.list(used),
+                    intercept = fit$intercept, coefficients = fit$coefficients, feature_means = means,
+                    importance = importance, high_risk_threshold = threshold),
+    test = test_m,
+    calibration = calibration(y_test, p, ev$calibration_bins),
+    slices = slice_rows,
+    fairness = fair,
+    gate = verdict
+  )
+  list(metrics = metrics, artefact = artefact, features = features)
 }
 
 to_json <- function(x) {
