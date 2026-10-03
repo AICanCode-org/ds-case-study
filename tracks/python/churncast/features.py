@@ -27,11 +27,14 @@ def month_start(index: int) -> datetime:
 
 
 def snapshot_months(contract: dict, export_month: int) -> list[int]:
-    """Every contract snapshot the export covers (the label month may be missing: label = None)."""
-    months = [month_index(m) for m in contract["snapshots"]["train"] + contract["snapshots"]["test"]]
-    months += [month_index(m) for k in ("recent", "holdout") for m in contract["snapshots"].get(k, [])]
-    months += [month_index(m) for m in contract["snapshots"].get("score", [])]
-    return sorted(m for m in set(months) if m <= export_month)
+    """Every contract snapshot the export covers. train/test: the snapshot month must be in the export (a missing
+    label month gives label = None). recent/holdout (1.1): only when the label month is in the export too.
+    score (1.1): the snapshot month only, it is never labelled."""
+    s = contract["snapshots"]
+    months = [month_index(m) for m in s["train"] + s["test"] + s.get("score", [])]
+    months = [m for m in months if m <= export_month]
+    months += [m for k in ("recent", "holdout") for m in map(month_index, s.get(k, [])) if m + 1 <= export_month]
+    return sorted(set(months))
 
 
 def split_of(month: int, contract: dict) -> str:

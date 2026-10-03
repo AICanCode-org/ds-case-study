@@ -15,7 +15,8 @@ def artefact():
 
 def test_artefact_shape():
     a = artefact()
-    assert a["schema_version"] == SCHEMA_VERSION == "1.0"
+    assert a["schema_version"] == SCHEMA_VERSION == "1.1"
+    assert "monitoring_reference" not in a and "lineage" not in a  # optional: only when given
     assert list(a["coefficients"]) == a["features"] == ["a", "b"]
     assert a["generator"] == {"track": "python", "version": "1.0.0"}
 
@@ -32,3 +33,22 @@ def test_contributions_add_up_and_are_sorted():
     at_mean = a["intercept"] + sum(b * a["feature_means"][f] for f, b in a["coefficients"].items())
     eta = math.log(score(a, row) / (1 - score(a, row)))
     assert sum(r["contribution"] for r in c) == pytest.approx(eta - at_mean)
+
+
+def test_monitoring_reference_and_lineage_are_additive():
+    a = build_artefact(
+        FIT,
+        "E2",
+        ["a", "b"],
+        {"a": 1.0, "b": 0.5},
+        0.3,
+        0.1,
+        {},
+        {},
+        "1.1.0",
+        "python",
+        {"bins": 10},
+        {"parent_model_version": "1.0.0"},
+    )
+    assert a["monitoring_reference"] == {"bins": 10} and a["lineage"] == {"parent_model_version": "1.0.0"}
+    assert list(a)[-1] == "generator"

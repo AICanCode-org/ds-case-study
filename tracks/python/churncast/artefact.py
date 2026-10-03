@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"  # 1.1 adds monitoring_reference and lineage (additive)
 
 
 def build_artefact(
@@ -20,7 +20,14 @@ def build_artefact(
     test_metrics: dict,
     version: str,
     track: str,
+    monitoring_reference: dict | None = None,
+    lineage: dict | None = None,
 ) -> dict:
+    extra = {}
+    if monitoring_reference is not None:
+        extra["monitoring_reference"] = monitoring_reference
+    if lineage is not None:
+        extra["lineage"] = lineage
     return {
         "schema_version": SCHEMA_VERSION,
         "name": "churncast",
@@ -36,6 +43,7 @@ def build_artefact(
         "base_rate": base_rate,
         "training": training,
         "test_metrics": test_metrics,
+        **extra,
         "generator": {"track": track, "version": version},
     }
 

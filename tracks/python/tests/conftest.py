@@ -27,6 +27,7 @@ REPO = Path(__file__).resolve().parents[3]
 CONTRACT_DIR = REPO / "contract"
 TINY = CONTRACT_DIR / "fixtures" / "tiny"
 EXPORT_V10 = REPO / "data" / "raw" / "2026-05"
+EXPORT_V11 = REPO / "data" / "raw" / "2026-07"
 EXPECTED = json.loads((CONTRACT_DIR / "fixtures" / "tiny-expected.json").read_text(encoding="utf-8"))
 CASES = json.loads((CONTRACT_DIR / "fixtures" / "metric-cases.json").read_text(encoding="utf-8"))
 
@@ -65,7 +66,16 @@ def export_copy(tmp_path):
 
 @pytest.fixture(scope="session")
 def result(contract):
-    """The whole pipeline on the real 2026-05 export (about 3 s, computed once per test session)."""
+    """The whole pipeline on the latest export, 2026-07 (about 4 s, computed once per test session): training,
+    evaluation, then monitoring of the deployed v1.0 model and the champion/challenger retraining (Phase 7)."""
+    from churncast.pipeline import analyse
+
+    return analyse(EXPORT_V11, contract)
+
+
+@pytest.fixture(scope="session")
+def result_v10(contract):
+    """The same code on the 2026-05 export: it must still reproduce the v1.0 release (backward compatibility)."""
     from churncast.pipeline import analyse
 
     return analyse(EXPORT_V10, contract)

@@ -9,6 +9,7 @@ out/experiments.jsonl  the experiment log: one line per experiment
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -23,8 +24,11 @@ from .evaluate import auc, brier, calibration, fairness, gate, leakage_scan, log
 from .features import build_features, snapshot_summary
 from .load import load_export_meta, load_raw
 from .model import fit_logistic, fit_prior, fit_rule, predict_logistic, predict_prior, predict_rule
+from .monitoring import monitor, reference_profile, retrain
 
 TRACK = "python"
+REPO = Path(__file__).resolve().parents[3]
+TEST_KEYS = ("auc", "average_precision", "brier", "ece", "precision_at_top", "recall_at_top")
 
 
 def experiment_features(exp: dict, contract: dict) -> list[str]:
@@ -77,7 +81,12 @@ def choose_champion(experiments: list[dict], contract: dict) -> tuple[str, str]:
     return simple["id"], f"{bigger['id']} gains only {gain:.4f} mean CV AUC (< {need}): keep the simpler {simple['id']}"
 
 
-def analyse(data_dir: str | Path, contract: dict | None = None) -> dict:
+def load_deployed(contract: dict, path: str | Path | None = None) -> dict:
+    p = Path(path or os.environ.get("DEPLOYED_MODEL_PATH") or REPO / contract["monitoring"]["deployed_model"])
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def analyse(data_dir: str | Path, contract: dict | None = None, deployed: dict | None = None) -> dict:
     contract = contract or load_contract()
     meta = load_export_meta(data_dir)
     raw = load_raw(data_dir, contract)
@@ -136,6 +145,8 @@ def analyse(data_dir: str | Path, contract: dict | None = None) -> dict:
         "rows": len(train),
         "churners": int(train["churned"].sum()),
     }
+    bins = contract.get("monitoring", {}).get("psi_bins", 10)
+    reference = reference_profile(train, used, train_p, bins)
     artefact = build_artefact(
         fit,
         champion_id,
@@ -144,10 +155,48 @@ def analyse(data_dir: str | Path, contract: dict | None = None) -> dict:
         threshold,
         float(train["churned"].mean()),
         training,
-        {k: test_m[k] for k in ("auc", "average_precision", "brier", "ece", "precision_at_top", "recall_at_top")},
+        {k: test_m[k] for k in TEST_KEYS},
         __version__,
         TRACK,
+        reference,
+        {"parent_model_version": None, "trained_on": contract["snapshots"]["train"]},
     )
+    post = {}
+    labelled = set(features.loc[features["churned"].notna(), "split"])
+    if "monitoring" in contract and {"recent", "holdout"} <= labelled:
+        deployed = deployed or load_deployed(contract)
+        post["monitoring"] = monitor(features, deployed, contract)
+        r = retrain(features, deployed, contract)
+        post["retraining"] = r["section"]
+        sec = r["section"]
+        refit = r["refit_rows"]
+        artefact = build_artefact(
+            r["fit"],
+            champion_id,
+            used,
+            {f: float(refit[f].mean()) for f in used},
+            quantile7(r["calibration_scores"], 0.9),
+            float(r["calibration_rows"]["churned"].astype(int).mean()),
+            {
+                "export": meta["export"],
+                "contract_version": contract["contract_version"],
+                "snapshots": sec["challenger"]["refit_snapshots"],
+                "rows": len(refit),
+                "churners": int(refit["churned"].sum()),
+            },
+            {k: sec["challenger_holdout"][k] for k in TEST_KEYS},
+            __version__,
+            TRACK,
+            reference_profile(refit, used, predict_logistic(r["fit"], refit), bins),
+            {
+                "parent_model_version": deployed["model_version"],
+                "refit_snapshots": sec["challenger"]["refit_snapshots"],
+                "calibration_snapshot": sec["challenger"]["calibration_snapshot"],
+                "calibration_offset": sec["challenger"]["calibration_offset"],
+                "decided_on": sec["holdout"]["snapshot"],
+                "decision": sec["decision"],
+            },
+        )
     importance = sorted(
         (
             {
@@ -161,7 +210,7 @@ def analyse(data_dir: str | Path, contract: dict | None = None) -> dict:
         key=lambda r: -abs(r["standardised"]),
     )
     metrics = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "generator": {"track": TRACK, "version": __version__},
         "dataset": {
             "export": meta["export"],
@@ -210,6 +259,7 @@ def analyse(data_dir: str | Path, contract: dict | None = None) -> dict:
         "slices": slice_rows,
         "fairness": fair,
         "gate": verdict,
+        **post,
     }
     return {"metrics": metrics, "artefact": artefact, "features": features}
 

@@ -1,7 +1,7 @@
 """The evaluation gate as tests: the model ships only if these numbers hold on the out-of-time test months."""
 
 from churncast.pipeline import analyse
-from tests.conftest import EXPORT_V10
+from tests.conftest import EXPORT_V11
 
 
 def by_id(result):
@@ -49,6 +49,6 @@ def test_the_retention_campaign_is_worth_more_than_the_rule(result):
 
 
 def test_training_twice_gives_identical_results(result, contract):
-    again = analyse(EXPORT_V10, contract)
+    again = analyse(EXPORT_V11, contract)
     assert again["metrics"] == result["metrics"]
     assert again["artefact"] == result["artefact"]

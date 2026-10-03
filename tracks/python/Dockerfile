@@ -1,9 +1,10 @@
 # ChurnCast pipeline, Python track. Build from the repo root:
 #   docker build -f tracks/python/Dockerfile -t churncast-python:local .
-#   docker run --rm -v "$PWD/data:/app/data:ro" -v "$PWD/out:/out" churncast-python:local run --data /app/data/raw/2026-05 --out /out
+#   docker run --rm -v "$PWD/data:/app/data:ro" -v "$PWD/out:/out" churncast-python:local run --data /app/data/raw/2026-07 --out /out
 # Few layers on purpose: one for dependencies, one for the code (cheap rebuilds, small images).
 FROM scratch AS src
 COPY contract /app/contract
+COPY models /app/models
 COPY tracks/python/churncast /app/tracks/python/churncast
 
 FROM python:3.12-slim
@@ -16,4 +17,4 @@ COPY --from=src /app /app
 WORKDIR /app/tracks/python
 USER 10001
 ENTRYPOINT ["python", "-m", "churncast"]
-CMD ["run", "--data", "/app/data/raw/2026-05", "--out", "/out"]
+CMD ["run", "--data", "/app/data/raw/2026-07", "--out", "/out"]
